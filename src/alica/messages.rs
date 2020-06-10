@@ -28,12 +28,12 @@ impl<'a> Client<'a> {
         use sha2::Digest;
         let mut hasher = sha2::Sha512::new();
         hasher.input(&payload_bytes);
-        let payload_checksum: String = data_encoding::HEXUPPER.encode(&hasher.result()[..]);
+        let payload_checksum: String = data_encoding::HEXLOWER.encode(&hasher.result()[..]);
 
         let mut transaction_header = sawtooth_sdk::messages::transaction::TransactionHeader::new();
         transaction_header.set_family_name(String::from("alica-messages"));
         transaction_header.set_family_version(String::from("0.1.0"));
-        transaction_header.set_nonce(data_encoding::HEXUPPER.encode(&nonce));
+        transaction_header.set_nonce(data_encoding::HEXLOWER.encode(&nonce));
         transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![]));
         transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![]));
         transaction_header.set_signer_public_key(
