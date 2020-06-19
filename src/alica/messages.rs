@@ -31,7 +31,7 @@ impl<'a> Client<'a> {
         let payload_checksum: String = data_encoding::HEXLOWER.encode(&hasher.result()[..]);
 
         let mut transaction_header = sawtooth_sdk::messages::transaction::TransactionHeader::new();
-        transaction_header.set_family_name(String::from("alica-messages"));
+        transaction_header.set_family_name(String::from("alica_messages"));
         transaction_header.set_family_version(String::from("0.1.0"));
         transaction_header.set_nonce(data_encoding::HEXLOWER.encode(&nonce));
         transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![]));
