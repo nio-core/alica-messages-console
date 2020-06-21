@@ -1,13 +1,22 @@
+use protobuf::Message;
+use rand::Rng;
+use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
+use sha2::Digest;
+
 pub struct Client<'a> {
     validator_url: &'a str,
+    fammily_name: String,
 }
 
 impl<'a> Client<'a> {
     pub fn new(url: &'a str) -> Self {
-        Client { validator_url: url }
+        Client {
+            validator_url: url,
+            fammily_name: String::from("alica_messages"),
+        }
     }
 
-    pub fn send(&self, message: &'a str) {
+    pub fn send(&self, message: AlicaMessage) {
         let context = sawtooth_sdk::signing::create_context("secp256k1")
             .expect("Invalid algorithm name in context cration");
         let private_key = context
@@ -16,26 +25,25 @@ impl<'a> Client<'a> {
         let crypto_factory = sawtooth_sdk::signing::CryptoFactory::new(context.as_ref());
         let signer = crypto_factory.new_signer(private_key.as_ref());
 
-        let payload = Payload::new(String::from("msg"), String::from(message));
-        let payload_bytes = payload.serialize();
+        let payload_bytes = message.serialize();
 
         let mut nonce = [0u8, 16];
-        use rand::Rng;
         rand::thread_rng()
             .try_fill(&mut nonce)
             .expect("Error filling nonce");
 
-        use sha2::Digest;
         let mut hasher = sha2::Sha512::new();
-        hasher.input(&payload_bytes);
-        let payload_checksum: String = data_encoding::HEXLOWER.encode(&hasher.result()[..]);
+        hasher.update(&payload_bytes);
+        let payload_checksum: String = data_encoding::HEXLOWER.encode(&hasher.finalize()[..]);
+
+        let address = self.state_address_for(&self.fammily_name, &message);
 
         let mut transaction_header = sawtooth_sdk::messages::transaction::TransactionHeader::new();
-        transaction_header.set_family_name(String::from("alica_messages"));
+        transaction_header.set_family_name(String::from(self.fammily_name.clone()));
         transaction_header.set_family_version(String::from("0.1.0"));
         transaction_header.set_nonce(data_encoding::HEXLOWER.encode(&nonce));
-        transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![]));
-        transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![]));
+        transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![address.clone()]));
+        transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![address.clone()]));
         transaction_header.set_signer_public_key(
             signer
                 .get_public_key()
@@ -50,7 +58,6 @@ impl<'a> Client<'a> {
         );
         transaction_header.set_payload_sha512(payload_checksum);
 
-        use protobuf::Message;
         let transaction_header_bytes = transaction_header
             .write_to_bytes()
             .expect("Error serializing transaction header");
@@ -99,8 +106,7 @@ impl<'a> Client<'a> {
 
         let connection =
             sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection::new(self.validator_url);
-        use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
-        let (sender, _receiver) = connection.create();
+        let (mut sender, _receiver) = connection.create();
         match sender.send(
             sawtooth_sdk::messages::validator::Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST,
             correlation_id.as_str(),
@@ -121,23 +127,98 @@ impl<'a> Client<'a> {
             },
             Err(error) => panic!("Error sending batch submit request. Error was {}", error),
         };
+
+        sender.close();
+    }
+
+    fn state_address_for(&self, family_name: &str, message: &AlicaMessage) -> String {
+        let mut hasher = sha2::Sha512::new();
+        hasher.update(format!(
+            "{}{}{}",
+            &message.agent_id, &message.message_type, &message.timestamp
+        ));
+        let payload_part = data_encoding::HEXLOWER.encode(&hasher.finalize());
+
+        let mut hasher = sha2::Sha512::new();
+        hasher.update(family_name);
+        let namespace_part = data_encoding::HEXLOWER.encode(&hasher.finalize()[..]);
+
+        format!("{}{}", &namespace_part[..6], &payload_part[..64])
     }
 }
 
 #[derive(Debug)]
-pub struct Payload {
-    r#type: String,
+pub struct AlicaMessage {
+    agent_id: String,
+    message_type: String,
     message: String,
+    timestamp: String,
 }
 
-impl Payload {
-    pub fn new(r#type: String, message: String) -> Self {
-        Payload { r#type, message }
+impl AlicaMessage {
+    pub fn new(
+        agent_id: String,
+        message_type: String,
+        message: String,
+        timestamp: String,
+    ) -> AlicaMessage {
+        AlicaMessage {
+            agent_id: agent_id,
+            message_type: message_type,
+            message: message,
+            timestamp: timestamp,
+        }
     }
 
     pub fn serialize(&self) -> Vec<u8> {
-        format!("{};;{}", self.r#type, self.message)
-            .as_bytes()
-            .to_vec()
+        format!(
+            "{}|{}|{}|{}",
+            &self.agent_id, &self.message_type, &self.message, &self.timestamp
+        )
+        .as_bytes()
+        .to_vec()
     }
+}
+
+pub fn get_commandline_arguments<'a>() -> clap::ArgMatches<'a> {
+    clap::App::new("alica-messages")
+        .about("Client for the alica-message transaction processor")
+        .author("Sven Starcke")
+        .version("0.1.0")
+        .arg(
+            clap::Arg::with_name("connect")
+                .short("C")
+                .long("connect")
+                .takes_value(true)
+                .help("ZeroMQ address of a validator"),
+        )
+        .arg(
+            clap::Arg::with_name("agent id")
+                .short("i")
+                .long("id")
+                .takes_value(true)
+                .help("The unique identifier of the sending agent"),
+        )
+        .arg(
+            clap::Arg::with_name("message type")
+                .short("t")
+                .long("type")
+                .takes_value(true)
+                .help("The type of the message to log"),
+        )
+        .arg(
+            clap::Arg::with_name("message")
+                .short("m")
+                .long("message")
+                .takes_value(true)
+                .help("The message to log"),
+        )
+        .arg(
+            clap::Arg::with_name("timestamp")
+                .short("z")
+                .long("timestamp")
+                .takes_value(true)
+                .help("The timestamp of the moment the message was recorded"),
+        )
+        .get_matches()
 }

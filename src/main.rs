@@ -1,36 +1,40 @@
-pub mod alica;
+use ::alica_messages_client::{get_commandline_arguments, AlicaMessage, Client};
 
 fn main() {
-    let args = clap::App::new("alica-messages")
-        .about("Client for the alica-message transaction processor")
-        .author("Sven Starcke")
-        .version("0.1.0")
-        .arg(
-            clap::Arg::with_name("connect")
-                .short("C")
-                .long("connect")
-                .takes_value(true)
-                .help("ZeroMQ address of a validator"),
-        )
-        .arg(
-            clap::Arg::with_name("message")
-                .short("m")
-                .long("message")
-                .takes_value(true)
-                .help("The message to log"),
-        )
-        .get_matches();
+    let args = get_commandline_arguments();
 
     let validator_url = match args.value_of("connect") {
         Some(url) => url,
         None => panic!("Missing validator address!"),
     };
 
-    let message = match args.value_of("message") {
+    let agent_id = match args.value_of("agent id") {
+        Some(id) => id,
+        None => panic!("Missing agent id"),
+    };
+
+    let message_type = match args.value_of("message type") {
+        Some(message_type) => message_type,
+        None => panic!("Missing message type"),
+    };
+
+    let message_text = match args.value_of("message") {
         Some(message) => message,
         None => panic!("Missing message"),
     };
 
-    let client = alica::messages::Client::new(validator_url);
+    let timestamp = match args.value_of("timestamp") {
+        Some(timestamp) => timestamp,
+        None => panic!("Missing timestamp"),
+    };
+
+    let message = AlicaMessage::new(
+        String::from(agent_id),
+        String::from(message_type),
+        String::from(message_text),
+        String::from(timestamp),
+    );
+
+    let client = Client::new(validator_url);
     client.send(message);
 }
