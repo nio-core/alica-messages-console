@@ -3,6 +3,7 @@ use rand::Rng;
 use sha2::Digest;
 use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
+use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
 use sawtooth_sdk::signing::{PrivateKey, Context};
 
 fn random_nonce() -> String {
@@ -69,49 +70,59 @@ impl Client {
     }
 
     fn transaction_for(&self, message: &AlicaMessage) -> Transaction {
-        let header_bytes = self.transaction_header_for(message).write_to_bytes()
+        let header = self.transaction_header_for(message).write_to_bytes()
             .expect("Error serializing transaction header");
 
         let mut transaction = Transaction::new();
         transaction.set_header_signature(
             self.context
-                .sign(&header_bytes, self.private_key.as_ref())
+                .sign(&header, self.private_key.as_ref())
                 .expect("Error signing transaction header"),
         );
-        transaction.set_header(header_bytes);
+        transaction.set_header(header);
         transaction.set_payload(message.serialize());
+
         transaction
     }
 
-    pub fn send(&self, message: AlicaMessage) {
-        let transaction = self.transaction_for(&message);
-
-        let mut batch_header = sawtooth_sdk::messages::batch::BatchHeader::new();
-        batch_header.set_signer_public_key(
+    fn batch_header_for(&self, transactions: &Vec<Transaction>) -> BatchHeader {
+        let mut header = BatchHeader::new();
+        header.set_signer_public_key(
             self.context
                 .get_public_key(self.private_key.as_ref())
                 .expect("Error retreiving signer's public key")
                 .as_hex(),
         );
-        batch_header.set_transaction_ids(protobuf::RepeatedField::from_vec(
-            vec![transaction.clone()]
+        header.set_transaction_ids(protobuf::RepeatedField::from_vec(
+            transactions
                 .iter()
                 .map(|t| String::from(t.get_header_signature()))
                 .collect(),
         ));
 
-        let batch_header_bytes = batch_header
-            .write_to_bytes()
+        header
+    }
+
+    fn batch_for(&self, transactions: &Vec<Transaction>) -> Batch {
+        let header = self.batch_header_for(transactions).write_to_bytes()
             .expect("Error serializing batch header");
 
-        let mut batch = sawtooth_sdk::messages::batch::Batch::new();
+        let mut batch = Batch::new();
         batch.set_header_signature(
             self.context
-                .sign(&batch_header_bytes, self.private_key.as_ref())
+                .sign(&header, self.private_key.as_ref())
                 .expect("Error signing batch header"),
         );
-        batch.set_header(batch_header_bytes);
-        batch.set_transactions(protobuf::RepeatedField::from_vec(vec![transaction]));
+        batch.set_header(header);
+        batch.set_transactions(protobuf::RepeatedField::from_vec(transactions.to_vec()));
+
+        batch
+    }
+
+    pub fn send(&self, message: AlicaMessage) {
+        let transaction = self.transaction_for(&message);
+        let transactions = vec![transaction];
+        let batch = self.batch_for(&transactions);
 
         let mut batch_submit_request =
             sawtooth_sdk::messages::client_batch_submit::ClientBatchSubmitRequest::new();
