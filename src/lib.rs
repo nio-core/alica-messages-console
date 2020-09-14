@@ -10,6 +10,13 @@ fn random_nonce() -> [u8; 16] {
     nonce
 }
 
+fn calculate_checksum<T>(data: &T) -> String
+    where T: AsRef<[u8]> {
+    let mut hasher = sha2::Sha512::new();
+    hasher.update(data);
+    data_encoding::HEXLOWER.encode(&hasher.finalize()[..])
+}
+
 pub struct Client {
     validator_url: String,
     family_name: String,
@@ -34,19 +41,15 @@ impl Client {
 
     pub fn send(&self, message: AlicaMessage) {
         let payload_bytes = message.serialize();
-
-        let mut hasher = sha2::Sha512::new();
-        hasher.update(&payload_bytes);
-        let payload_checksum: String = data_encoding::HEXLOWER.encode(&hasher.finalize()[..]);
-
-        let address = self.state_address_for(&self.family_name, &message);
+        let payload_checksum = calculate_checksum(&payload_bytes);
+        let state_address = self.state_address_for(&message);
 
         let mut transaction_header = sawtooth_sdk::messages::transaction::TransactionHeader::new();
         transaction_header.set_family_name(String::from(self.family_name.clone()));
         transaction_header.set_family_version(String::from("0.1.0"));
         transaction_header.set_nonce(data_encoding::HEXLOWER.encode(&random_nonce()));
-        transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![address.clone()]));
-        transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![address.clone()]));
+        transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![state_address.clone()]));
+        transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![state_address.clone()]));
         transaction_header.set_signer_public_key(
             self.context.get_public_key(self.private_key.as_ref())
                 .expect("Error retreiving signer's public key")
@@ -133,17 +136,11 @@ impl Client {
         sender.close();
     }
 
-    fn state_address_for(&self, family_name: &str, message: &AlicaMessage) -> String {
-        let mut hasher = sha2::Sha512::new();
-        hasher.update(format!(
-            "{}{}{}",
-            &message.agent_id, &message.message_type, &message.timestamp
-        ));
-        let payload_part = data_encoding::HEXLOWER.encode(&hasher.finalize());
+    fn state_address_for(&self, message: &AlicaMessage) -> String {
+        let payload_part = calculate_checksum(
+            &format!("{}{}{}", &message.agent_id, &message.message_type, &message.timestamp));
 
-        let mut hasher = sha2::Sha512::new();
-        hasher.update(family_name);
-        let namespace_part = data_encoding::HEXLOWER.encode(&hasher.finalize()[..]);
+        let namespace_part = calculate_checksum(&self.family_name);
 
         format!("{}{}", &namespace_part[..6], &payload_part[..64])
     }
