@@ -2,12 +2,13 @@ use protobuf::Message;
 use rand::Rng;
 use sha2::Digest;
 use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
+use sawtooth_sdk::messages::transaction::TransactionHeader;
 use sawtooth_sdk::signing::{PrivateKey, Context};
 
-fn random_nonce() -> [u8; 16] {
+fn random_nonce() -> String {
     let mut nonce = [0u8; 16];
     rand::thread_rng().try_fill(&mut nonce).expect("Error filling nonce");
-    nonce
+    data_encoding::HEXLOWER.encode(&nonce)
 }
 
 fn calculate_checksum<T>(data: &T) -> String
@@ -20,6 +21,7 @@ fn calculate_checksum<T>(data: &T) -> String
 pub struct Client {
     validator_url: String,
     family_name: String,
+    family_version: String,
     context: Box<dyn Context>,
     private_key: Box<dyn PrivateKey>
 }
@@ -34,22 +36,22 @@ impl Client {
         Client {
             validator_url: url,
             family_name: String::from("alica_messages"),
+            family_version: String::from("0.1.0"),
             context,
             private_key
         }
     }
 
-    pub fn send(&self, message: AlicaMessage) {
-        let payload_bytes = message.serialize();
-        let payload_checksum = calculate_checksum(&payload_bytes);
+    fn transaction_header_for(&self, message: &AlicaMessage) -> TransactionHeader {
+        let payload_checksum = calculate_checksum(&message.serialize());
         let state_address = self.state_address_for(&message);
 
-        let mut transaction_header = sawtooth_sdk::messages::transaction::TransactionHeader::new();
-        transaction_header.set_family_name(String::from(self.family_name.clone()));
-        transaction_header.set_family_version(String::from("0.1.0"));
-        transaction_header.set_nonce(data_encoding::HEXLOWER.encode(&random_nonce()));
+        let mut transaction_header = TransactionHeader::new();
+        transaction_header.set_family_name(self.family_name.clone());
+        transaction_header.set_family_version(self.family_version.clone());
+        transaction_header.set_nonce(random_nonce());
         transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![state_address.clone()]));
-        transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![state_address.clone()]));
+        transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![state_address]));
         transaction_header.set_signer_public_key(
             self.context.get_public_key(self.private_key.as_ref())
                 .expect("Error retreiving signer's public key")
@@ -63,6 +65,13 @@ impl Client {
         );
         transaction_header.set_payload_sha512(payload_checksum);
 
+        transaction_header
+    }
+
+    pub fn send(&self, message: AlicaMessage) {
+        let payload_bytes = message.serialize();
+
+        let transaction_header = self.transaction_header_for(&message);
         let transaction_header_bytes = transaction_header
             .write_to_bytes()
             .expect("Error serializing transaction header");
