@@ -3,16 +3,18 @@ use rand::Rng;
 use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
 use sha2::Digest;
 
-pub struct Client<'a> {
-    validator_url: &'a str,
-    fammily_name: String,
+pub struct Client {
+    validator_url: String,
+    family_name: String,
 }
 
-impl<'a> Client<'a> {
-    pub fn new(url: &'a str) -> Self {
+impl Client {
+    pub fn new(url: String) -> Self {
+
+
         Client {
             validator_url: url,
-            fammily_name: String::from("alica_messages"),
+            family_name: String::from("alica_messages"),
         }
     }
 
@@ -36,10 +38,10 @@ impl<'a> Client<'a> {
         hasher.update(&payload_bytes);
         let payload_checksum: String = data_encoding::HEXLOWER.encode(&hasher.finalize()[..]);
 
-        let address = self.state_address_for(&self.fammily_name, &message);
+        let address = self.state_address_for(&self.family_name, &message);
 
         let mut transaction_header = sawtooth_sdk::messages::transaction::TransactionHeader::new();
-        transaction_header.set_family_name(String::from(self.fammily_name.clone()));
+        transaction_header.set_family_name(String::from(self.family_name.clone()));
         transaction_header.set_family_version(String::from("0.1.0"));
         transaction_header.set_nonce(data_encoding::HEXLOWER.encode(&nonce));
         transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![address.clone()]));
@@ -105,7 +107,7 @@ impl<'a> Client<'a> {
         let correlation_id = uuid::Uuid::new_v4().to_string();
 
         let connection =
-            sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection::new(self.validator_url);
+            sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection::new(&self.validator_url);
         let (mut sender, _receiver) = connection.create();
         match sender.send(
             sawtooth_sdk::messages::validator::Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST,

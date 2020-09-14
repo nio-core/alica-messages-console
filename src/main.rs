@@ -35,6 +35,6 @@ fn main() {
         String::from(timestamp),
     );
 
-    let client = Client::new(validator_url);
+    let client = Client::new(String::from(validator_url));
     client.send(message);
 }
