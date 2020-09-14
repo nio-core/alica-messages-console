@@ -2,7 +2,7 @@ use protobuf::Message;
 use rand::Rng;
 use sha2::Digest;
 use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
-use sawtooth_sdk::messages::transaction::TransactionHeader;
+use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::signing::{PrivateKey, Context};
 
 fn random_nonce() -> String {
@@ -68,22 +68,23 @@ impl Client {
         transaction_header
     }
 
-    pub fn send(&self, message: AlicaMessage) {
-        let payload_bytes = message.serialize();
-
-        let transaction_header = self.transaction_header_for(&message);
-        let transaction_header_bytes = transaction_header
-            .write_to_bytes()
+    fn transaction_for(&self, message: &AlicaMessage) -> Transaction {
+        let header_bytes = self.transaction_header_for(message).write_to_bytes()
             .expect("Error serializing transaction header");
 
-        let mut transaction = sawtooth_sdk::messages::transaction::Transaction::new();
+        let mut transaction = Transaction::new();
         transaction.set_header_signature(
             self.context
-                .sign(&transaction_header_bytes, self.private_key.as_ref())
+                .sign(&header_bytes, self.private_key.as_ref())
                 .expect("Error signing transaction header"),
         );
-        transaction.set_header(transaction_header_bytes);
-        transaction.set_payload(payload_bytes);
+        transaction.set_header(header_bytes);
+        transaction.set_payload(message.serialize());
+        transaction
+    }
+
+    pub fn send(&self, message: AlicaMessage) {
+        let transaction = self.transaction_for(&message);
 
         let mut batch_header = sawtooth_sdk::messages::batch::BatchHeader::new();
         batch_header.set_signer_public_key(
