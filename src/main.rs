@@ -36,5 +36,5 @@ fn main() {
     );
 
     let client = Client::new(String::from(validator_url));
-    client.send(message);
+    client.new_message(&message);
 }

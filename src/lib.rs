@@ -1,10 +1,13 @@
 use protobuf::Message;
 use rand::Rng;
 use sha2::Digest;
+use sawtooth_sdk::messages::client_batch_submit::ClientBatchSubmitRequest;
 use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
+use sawtooth_sdk::messages::validator;
 use sawtooth_sdk::signing::{PrivateKey, Context};
+use sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection;
 
 fn random_nonce() -> String {
     let mut nonce = [0u8; 16];
@@ -20,11 +23,11 @@ fn calculate_checksum<T>(data: &T) -> String
 }
 
 pub struct Client {
-    validator_url: String,
     family_name: String,
     family_version: String,
     context: Box<dyn Context>,
-    private_key: Box<dyn PrivateKey>
+    private_key: Box<dyn PrivateKey>,
+    connection: ZmqMessageConnection
 }
 
 impl Client {
@@ -34,13 +37,54 @@ impl Client {
         let private_key = context.new_random_private_key()
             .expect("Error creating a private key");
 
+        let connection = ZmqMessageConnection::new(&url);
+
         Client {
-            validator_url: url,
             family_name: String::from("alica_messages"),
             family_version: String::from("0.1.0"),
             context,
-            private_key
+            private_key,
+            connection
         }
+    }
+
+    pub fn new_message(&self, message: &AlicaMessage) {
+        let transaction = self.transaction_for(&message);
+        let transactions = vec![transaction];
+        let batch = self.batch_for(&transactions);
+
+        let mut batch_submit_request = ClientBatchSubmitRequest::new();
+        batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
+
+        self.send(&batch_submit_request, validator::Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST);
+    }
+
+    fn send<T>(&self, request: &T, request_type: validator::Message_MessageType)
+        where T: protobuf::Message {
+        let correlation_id = uuid::Uuid::new_v4().to_string();
+        let (mut sender, _receiver) = self.connection.create();
+
+        match sender.send(
+            request_type,
+            correlation_id.as_str(),
+            &request.write_to_bytes()
+                .expect("Error serializing client batch submit request")[..],
+        ) {
+            Ok(mut future) => match future.get() {
+                Ok(result) => println!(
+                    "Got response of type {:?} with content {:?}",
+                    result.get_message_type(),
+                    result.get_content()
+                ),
+                Err(error) => panic!(
+                    "Error unpacking response from batch submit request. Error was {}",
+                    error
+                ),
+            },
+            Err(error) => panic!("Error sending batch submit request. Error was {}", error),
+        };
+
+        sender.close();
     }
 
     fn transaction_header_for(&self, message: &AlicaMessage) -> TransactionHeader {
@@ -55,13 +99,13 @@ impl Client {
         transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![state_address]));
         transaction_header.set_signer_public_key(
             self.context.get_public_key(self.private_key.as_ref())
-                .expect("Error retreiving signer's public key")
+                .expect("Error retrieving signer's public key")
                 .as_hex(),
         );
         transaction_header.set_batcher_public_key(
             self.context
                 .get_public_key(self.private_key.as_ref())
-                .expect("Error retreiving signer's public key")
+                .expect("Error retrieving signer's public key")
                 .as_hex(),
         );
         transaction_header.set_payload_sha512(payload_checksum);
@@ -117,44 +161,6 @@ impl Client {
         batch.set_transactions(protobuf::RepeatedField::from_vec(transactions.to_vec()));
 
         batch
-    }
-
-    pub fn send(&self, message: AlicaMessage) {
-        let transaction = self.transaction_for(&message);
-        let transactions = vec![transaction];
-        let batch = self.batch_for(&transactions);
-
-        let mut batch_submit_request =
-            sawtooth_sdk::messages::client_batch_submit::ClientBatchSubmitRequest::new();
-        batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
-
-        let correlation_id = uuid::Uuid::new_v4().to_string();
-
-        let connection =
-            sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection::new(&self.validator_url);
-        let (mut sender, _receiver) = connection.create();
-        match sender.send(
-            sawtooth_sdk::messages::validator::Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST,
-            correlation_id.as_str(),
-            &batch_submit_request
-                .write_to_bytes()
-                .expect("Error serializing client batch submit request")[..],
-        ) {
-            Ok(mut future) => match future.get() {
-                Ok(result) => println!(
-                    "Got response of type {:?} with content {:?}",
-                    result.get_message_type(),
-                    result.get_content()
-                ),
-                Err(error) => panic!(
-                    "Error unpacking response from batch submit request. Error was {}",
-                    error
-                ),
-            },
-            Err(error) => panic!("Error sending batch submit request. Error was {}", error),
-        };
-
-        sender.close();
     }
 
     fn state_address_for(&self, message: &AlicaMessage) -> String {
