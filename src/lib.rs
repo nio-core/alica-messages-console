@@ -2,31 +2,31 @@ use protobuf::Message;
 use rand::Rng;
 use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
 use sha2::Digest;
+use sawtooth_sdk::signing::{PrivateKey, Context};
 
 pub struct Client {
     validator_url: String,
     family_name: String,
+    context: Box<dyn Context>,
+    private_key: Box<dyn PrivateKey>
 }
 
 impl Client {
     pub fn new(url: String) -> Self {
-
+        let context = sawtooth_sdk::signing::create_context("secp256k1")
+            .expect("Invalid algorithm name in context creation");
+        let private_key = context.new_random_private_key()
+            .expect("Error creating a private key");
 
         Client {
             validator_url: url,
             family_name: String::from("alica_messages"),
+            context,
+            private_key
         }
     }
 
     pub fn send(&self, message: AlicaMessage) {
-        let context = sawtooth_sdk::signing::create_context("secp256k1")
-            .expect("Invalid algorithm name in context cration");
-        let private_key = context
-            .new_random_private_key()
-            .expect("error creating a private key");
-        let crypto_factory = sawtooth_sdk::signing::CryptoFactory::new(context.as_ref());
-        let signer = crypto_factory.new_signer(private_key.as_ref());
-
         let payload_bytes = message.serialize();
 
         let mut nonce = [0u8, 16];
@@ -47,14 +47,13 @@ impl Client {
         transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![address.clone()]));
         transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![address.clone()]));
         transaction_header.set_signer_public_key(
-            signer
-                .get_public_key()
+            self.context.get_public_key(self.private_key.as_ref())
                 .expect("Error retreiving signer's public key")
                 .as_hex(),
         );
         transaction_header.set_batcher_public_key(
-            signer
-                .get_public_key()
+            self.context
+                .get_public_key(self.private_key.as_ref())
                 .expect("Error retreiving signer's public key")
                 .as_hex(),
         );
@@ -66,8 +65,8 @@ impl Client {
 
         let mut transaction = sawtooth_sdk::messages::transaction::Transaction::new();
         transaction.set_header_signature(
-            signer
-                .sign(&transaction_header_bytes)
+            self.context
+                .sign(&transaction_header_bytes, self.private_key.as_ref())
                 .expect("Error signing transaction header"),
         );
         transaction.set_header(transaction_header_bytes);
@@ -75,8 +74,8 @@ impl Client {
 
         let mut batch_header = sawtooth_sdk::messages::batch::BatchHeader::new();
         batch_header.set_signer_public_key(
-            signer
-                .get_public_key()
+            self.context
+                .get_public_key(self.private_key.as_ref())
                 .expect("Error retreiving signer's public key")
                 .as_hex(),
         );
@@ -93,8 +92,8 @@ impl Client {
 
         let mut batch = sawtooth_sdk::messages::batch::Batch::new();
         batch.set_header_signature(
-            signer
-                .sign(&batch_header_bytes)
+            self.context
+                .sign(&batch_header_bytes, self.private_key.as_ref())
                 .expect("Error signing batch header"),
         );
         batch.set_header(batch_header_bytes);
@@ -165,10 +164,10 @@ impl AlicaMessage {
         timestamp: String,
     ) -> AlicaMessage {
         AlicaMessage {
-            agent_id: agent_id,
-            message_type: message_type,
-            message: message,
-            timestamp: timestamp,
+            agent_id,
+            message_type,
+            message,
+            timestamp,
         }
     }
 
