@@ -1,8 +1,14 @@
 use protobuf::Message;
 use rand::Rng;
-use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
 use sha2::Digest;
+use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
 use sawtooth_sdk::signing::{PrivateKey, Context};
+
+fn random_nonce() -> [u8; 16] {
+    let mut nonce = [0u8; 16];
+    rand::thread_rng().try_fill(&mut nonce).expect("Error filling nonce");
+    nonce
+}
 
 pub struct Client {
     validator_url: String,
@@ -29,11 +35,6 @@ impl Client {
     pub fn send(&self, message: AlicaMessage) {
         let payload_bytes = message.serialize();
 
-        let mut nonce = [0u8, 16];
-        rand::thread_rng()
-            .try_fill(&mut nonce)
-            .expect("Error filling nonce");
-
         let mut hasher = sha2::Sha512::new();
         hasher.update(&payload_bytes);
         let payload_checksum: String = data_encoding::HEXLOWER.encode(&hasher.finalize()[..]);
@@ -43,7 +44,7 @@ impl Client {
         let mut transaction_header = sawtooth_sdk::messages::transaction::TransactionHeader::new();
         transaction_header.set_family_name(String::from(self.family_name.clone()));
         transaction_header.set_family_version(String::from("0.1.0"));
-        transaction_header.set_nonce(data_encoding::HEXLOWER.encode(&nonce));
+        transaction_header.set_nonce(data_encoding::HEXLOWER.encode(&random_nonce()));
         transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![address.clone()]));
         transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![address.clone()]));
         transaction_header.set_signer_public_key(
