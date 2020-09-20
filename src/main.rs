@@ -1,4 +1,5 @@
-use ::alica_messages_client::{get_commandline_arguments, AlicaMessage, Client};
+use alica_messages_client::get_commandline_arguments;
+use alica_messages_client::communication::{AlicaMessage, Client};
 
 fn main() {
     let args = get_commandline_arguments();
