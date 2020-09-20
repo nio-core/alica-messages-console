@@ -1,6 +1,42 @@
 pub mod communication;
 pub mod helper;
 
+use sawtooth_sdk::messages::validator::Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST;
+use sawtooth_sdk::messages::client_batch_submit::ClientBatchSubmitRequest;
+
+use crate::communication::AlicaMessage;
+
+pub trait SawtoothCommand {
+    fn execute(&self);
+}
+
+pub struct TransactionSubmissionCommand<'a> {
+    client: &'a communication::Client<'a>,
+    message: &'a AlicaMessage
+}
+
+impl<'a> TransactionSubmissionCommand<'a> {
+    pub fn new(client: &'a communication::Client, message: &'a AlicaMessage) -> Self {
+        TransactionSubmissionCommand {
+            client,
+            message
+        }
+    }
+}
+
+impl<'a> SawtoothCommand for TransactionSubmissionCommand<'a> {
+    fn execute(&self) {
+        let transaction = self.client.transaction_for(self.message);
+        let transactions = vec![transaction];
+        let batch = self.client.batch_for(&transactions);
+
+        let mut batch_submit_request = ClientBatchSubmitRequest::new();
+        batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
+
+        self.client.send(&batch_submit_request, CLIENT_BATCH_SUBMIT_REQUEST);
+    }
+}
+
 pub fn get_commandline_arguments<'a>() -> clap::ArgMatches<'a> {
     clap::App::new("alica-messages")
         .about("Client for the alica-message transaction processor")

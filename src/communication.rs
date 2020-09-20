@@ -1,5 +1,4 @@
 use protobuf::Message;
-use sawtooth_sdk::messages::client_batch_submit::ClientBatchSubmitRequest;
 use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
@@ -30,18 +29,7 @@ impl<'a> Client<'a> {
         }
     }
 
-    pub fn new_message(&self, message: &AlicaMessage) {
-        let transaction = self.transaction_for(&message);
-        let transactions = vec![transaction];
-        let batch = self.batch_for(&transactions);
-
-        let mut batch_submit_request = ClientBatchSubmitRequest::new();
-        batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
-
-        self.send(&batch_submit_request, validator::Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST);
-    }
-
-    fn send(&self, request: &dyn protobuf::Message, request_type: validator::Message_MessageType) {
+    pub fn send(&self, request: &dyn protobuf::Message, request_type: validator::Message_MessageType) {
         let correlation_id = uuid::Uuid::new_v4().to_string();
         let (mut sender, _receiver) = self.connection.create();
 
@@ -93,7 +81,7 @@ impl<'a> Client<'a> {
         transaction_header
     }
 
-    fn transaction_for(&self, message: &AlicaMessage) -> Transaction {
+    pub(crate) fn transaction_for(&self, message: &AlicaMessage) -> Transaction {
         let header = self.transaction_header_for(message).write_to_bytes()
             .expect("Error serializing transaction header");
 
@@ -125,7 +113,7 @@ impl<'a> Client<'a> {
         header
     }
 
-    fn batch_for(&self, transactions: &Vec<Transaction>) -> Batch {
+    pub(crate) fn batch_for(&self, transactions: &Vec<Transaction>) -> Batch {
         let header = self.batch_header_for(transactions).write_to_bytes()
             .expect("Error serializing batch header");
 

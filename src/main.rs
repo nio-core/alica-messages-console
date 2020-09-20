@@ -1,4 +1,4 @@
-use alica_messages_client::get_commandline_arguments;
+use alica_messages_client::{get_commandline_arguments, TransactionSubmissionCommand, SawtoothCommand};
 use alica_messages_client::communication::{AlicaMessage, Client};
 
 fn main() {
@@ -29,6 +29,8 @@ fn main() {
         None => panic!("Missing timestamp"),
     };
 
+    let client = Client::new(String::from(validator_url));
+
     let message = AlicaMessage::new(
         String::from(agent_id),
         String::from(message_type),
@@ -36,6 +38,6 @@ fn main() {
         String::from(timestamp),
     );
 
-    let client = Client::new(String::from(validator_url));
-    client.new_message(&message);
+    let command = TransactionSubmissionCommand::new(&client, &message);
+    command.execute();
 }
