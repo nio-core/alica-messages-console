@@ -1,5 +1,5 @@
 use protobuf::Message;
-use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
+use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender, SendError, MessageFuture};
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
 use sawtooth_sdk::messages::validator;
@@ -29,31 +29,12 @@ impl<'a> Client<'a> {
         }
     }
 
-    pub fn send(&self, request: &dyn protobuf::Message, request_type: validator::Message_MessageType) {
-        let correlation_id = uuid::Uuid::new_v4().to_string();
-        let (mut sender, _receiver) = self.connection.create();
-
-        match sender.send(
-            request_type,
-            correlation_id.as_str(),
-            &request.write_to_bytes()
-                .expect("Error serializing client batch submit request")[..],
-        ) {
-            Ok(mut future) => match future.get() {
-                Ok(result) => println!(
-                    "Got response of type {:?} with content {:?}",
-                    result.get_message_type(),
-                    result.get_content()
-                ),
-                Err(error) => panic!(
-                    "Error unpacking response from batch submit request. Error was {}",
-                    error
-                ),
-            },
-            Err(error) => panic!("Error sending batch submit request. Error was {}", error),
-        };
-
-        sender.close();
+    pub fn send(&self, request: &dyn protobuf::Message, request_type: validator::Message_MessageType)
+        -> Result<MessageFuture, SendError> {
+        let (sender, _receiver) = self.connection.create();
+        sender.send(request_type,
+                    uuid::Uuid::new_v4().to_string().as_str(),
+                    &request.write_to_bytes().unwrap())
     }
 
     fn transaction_header_for(&self, message: &AlicaMessage) -> TransactionHeader {

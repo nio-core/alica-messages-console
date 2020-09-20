@@ -1,10 +1,17 @@
 pub mod communication;
 pub mod helper;
 
-use sawtooth_sdk::messages::validator::Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST;
-use sawtooth_sdk::messages::client_batch_submit::ClientBatchSubmitRequest;
+use sawtooth_sdk::messages::validator::Message_MessageType::{CLIENT_TRANSACTION_LIST_REQUEST,
+                                                             CLIENT_TRANSACTION_LIST_RESPONSE,
+                                                             CLIENT_BATCH_SUBMIT_REQUEST,
+                                                             CLIENT_BATCH_SUBMIT_RESPONSE};
+use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest,
+                                                  ClientBatchSubmitResponse};
+use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest,
+                                                 ClientTransactionListResponse};
 
 use crate::communication::AlicaMessage;
+use std::borrow::Borrow;
 
 pub trait SawtoothCommand {
     fn execute(&self);
@@ -12,11 +19,11 @@ pub trait SawtoothCommand {
 
 pub struct TransactionSubmissionCommand<'a> {
     client: &'a communication::Client<'a>,
-    message: &'a AlicaMessage
+    message: AlicaMessage
 }
 
 impl<'a> TransactionSubmissionCommand<'a> {
-    pub fn new(client: &'a communication::Client, message: &'a AlicaMessage) -> Self {
+    pub fn new(client: &'a communication::Client, message: AlicaMessage) -> Self {
         TransactionSubmissionCommand {
             client,
             message
@@ -26,14 +33,74 @@ impl<'a> TransactionSubmissionCommand<'a> {
 
 impl<'a> SawtoothCommand for TransactionSubmissionCommand<'a> {
     fn execute(&self) {
-        let transaction = self.client.transaction_for(self.message);
+        let transaction = self.client.transaction_for(self.message.borrow());
         let transactions = vec![transaction];
         let batch = self.client.batch_for(&transactions);
 
         let mut batch_submit_request = ClientBatchSubmitRequest::new();
         batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
 
-        self.client.send(&batch_submit_request, CLIENT_BATCH_SUBMIT_REQUEST);
+        let result = self.client.send(&batch_submit_request, CLIENT_BATCH_SUBMIT_REQUEST);
+        let res = match result {
+            Ok(mut future) => match future.get() {
+                Ok(res) => res,
+                Err(e) => panic!(e)
+            },
+            Err(e) => panic!(e)
+        };
+
+        let response = match res.get_message_type() {
+            CLIENT_BATCH_SUBMIT_RESPONSE => {
+                protobuf::parse_from_bytes::<ClientBatchSubmitResponse>(res.get_content())
+                    .unwrap()
+            },
+            _ => panic!("Wrong response")
+        };
+
+        println!("Batch status: {:?}", response.get_status());
+    }
+}
+
+pub struct TransactionListCommand<'a> {
+    client: &'a communication::Client<'a>
+}
+
+impl<'a> TransactionListCommand<'a> {
+    pub fn new(client: &'a communication::Client) -> Self {
+        TransactionListCommand {
+            client
+        }
+    }
+}
+
+impl<'a> SawtoothCommand for TransactionListCommand<'a> {
+    fn execute(&self) {
+        let request = ClientTransactionListRequest::new();
+        let result = self.client.send(&request
+                         ,CLIENT_TRANSACTION_LIST_REQUEST);
+
+        let res = match result {
+            Ok(mut future) => match future.get() {
+                Ok(res) => res,
+                Err(e) => panic!(e)
+            },
+            Err(e) => panic!(e)
+        };
+
+        let response = match res.get_message_type() {
+            CLIENT_TRANSACTION_LIST_RESPONSE => {
+                protobuf::parse_from_bytes::<ClientTransactionListResponse>(res.get_content())
+                    .unwrap()
+            },
+            _ => panic!("Wrong response")
+        };
+
+        let transactions = response.get_transactions();
+        println!("Got {} transactions", transactions.len());
+
+        for transaction in transactions {
+            println!("{}", transaction.get_header_signature())
+        }
     }
 }
 
@@ -84,5 +151,7 @@ pub fn get_commandline_arguments<'a>() -> clap::ArgMatches<'a> {
                     .takes_value(true)
                     .help("The timestamp of the moment the message was recorded"),
             ))
+        .subcommand(clap::SubCommand::with_name("list")
+            .help("Lists all transaction in the blockchain"))
         .get_matches()
 }
