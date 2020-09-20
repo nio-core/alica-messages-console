@@ -41,8 +41,7 @@ impl<'a> Client<'a> {
         self.send(&batch_submit_request, validator::Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST);
     }
 
-    fn send<T>(&self, request: &T, request_type: validator::Message_MessageType)
-        where T: protobuf::Message {
+    fn send(&self, request: &dyn protobuf::Message, request_type: validator::Message_MessageType) {
         let correlation_id = uuid::Uuid::new_v4().to_string();
         let (mut sender, _receiver) = self.connection.create();
 
