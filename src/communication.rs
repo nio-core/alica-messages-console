@@ -4,33 +4,29 @@ use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
 use sawtooth_sdk::messages::validator;
-use sawtooth_sdk::signing::{PrivateKey, Context};
+use sawtooth_sdk::signing::Signer;
 use sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection;
 use crate::helper;
 
-pub struct Client {
+pub struct Client<'a> {
     family_name: String,
     family_version: String,
-    context: Box<dyn Context>,
-    private_key: Box<dyn PrivateKey>,
+    signer: Signer<'a>,
     connection: ZmqMessageConnection
 }
 
-impl Client {
+impl<'a> Client<'a> {
     pub fn new(url: String) -> Self {
         let context = sawtooth_sdk::signing::create_context("secp256k1")
             .expect("Invalid algorithm name in context creation");
         let private_key = context.new_random_private_key()
             .expect("Error creating a private key");
 
-        let connection = ZmqMessageConnection::new(&url);
-
         Client {
             family_name: String::from("alica_messages"),
             family_version: String::from("0.1.0"),
-            context,
-            private_key,
-            connection
+            signer: Signer::new_boxed(context, private_key),
+            connection: ZmqMessageConnection::new(&url)
         }
     }
 
@@ -84,13 +80,12 @@ impl Client {
         transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![state_address.clone()]));
         transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![state_address]));
         transaction_header.set_signer_public_key(
-            self.context.get_public_key(self.private_key.as_ref())
+            self.signer.get_public_key()
                 .expect("Error retrieving signer's public key")
                 .as_hex(),
         );
         transaction_header.set_batcher_public_key(
-            self.context
-                .get_public_key(self.private_key.as_ref())
+            self.signer.get_public_key()
                 .expect("Error retrieving signer's public key")
                 .as_hex(),
         );
@@ -105,8 +100,7 @@ impl Client {
 
         let mut transaction = Transaction::new();
         transaction.set_header_signature(
-            self.context
-                .sign(&header, self.private_key.as_ref())
+            self.signer.sign(&header)
                 .expect("Error signing transaction header"),
         );
         transaction.set_header(header);
@@ -118,9 +112,8 @@ impl Client {
     fn batch_header_for(&self, transactions: &Vec<Transaction>) -> BatchHeader {
         let mut header = BatchHeader::new();
         header.set_signer_public_key(
-            self.context
-                .get_public_key(self.private_key.as_ref())
-                .expect("Error retreiving signer's public key")
+            self.signer.get_public_key()
+                .expect("Error retrieving signer's public key")
                 .as_hex(),
         );
         header.set_transaction_ids(protobuf::RepeatedField::from_vec(
@@ -139,8 +132,7 @@ impl Client {
 
         let mut batch = Batch::new();
         batch.set_header_signature(
-            self.context
-                .sign(&header, self.private_key.as_ref())
+            self.signer.sign(&header)
                 .expect("Error signing batch header"),
         );
         batch.set_header(header);
