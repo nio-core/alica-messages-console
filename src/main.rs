@@ -1,14 +1,14 @@
-use alica_messages_client::{get_commandline_arguments, TransactionSubmissionCommand,
-                            SawtoothCommand, TransactionListCommand};
+use alica_messages_client::get_commandline_arguments;
 use alica_messages_client::communication::{AlicaMessage, Client};
+use alica_messages_client::commands::{SawtoothCommand, TransactionSubmissionCommand,
+                                      TransactionListCommand};
 
-fn alica_message_from(agent_id: &str, message_type: &str, message: &str, timestamp: &str)
-    -> AlicaMessage {
+fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessage {
     AlicaMessage::new(
-        String::from(agent_id),
-        String::from(message_type),
-        String::from(message_text),
-        String::from(timestamp),
+        args.value_of("agent id").unwrap().to_string(),
+        args.value_of("message type").unwrap().to_string(),
+        args.value_of("message").unwrap().to_string(),
+        args.value_of("timestamp").unwrap().to_string()
     )
 }
 
@@ -23,18 +23,11 @@ fn main() {
     let command: Box<dyn SawtoothCommand> = match subcommand {
         "new" => {
             let args = match subcommand_args {
-                Some(a) => a,
+                Some(args) => args,
                 None => panic!("No parameters supplied for transaction addition")
             };
-            
-            let message = alica_message_from(
-                args.value_of("agent id").unwrap(),
-                args.value_of("message type").unwrap(),
-                args.value_of("message").unwrap(),
-                args.value_of("timestamp").unwrap()
-            );
 
-            std::boxed::Box::new(TransactionSubmissionCommand::new(&client, message))
+            std::boxed::Box::new(TransactionSubmissionCommand::new(&client, alica_message_from(args)))
         },
         "list" => {
             std::boxed::Box::new(TransactionListCommand::new(&client))
