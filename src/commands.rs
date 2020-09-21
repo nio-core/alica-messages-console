@@ -6,7 +6,6 @@ use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest,
                                                   ClientBatchSubmitResponse};
 use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest,
                                                  ClientTransactionListResponse};
-
 use crate::communication::{AlicaMessage, Client};
 use std::borrow::Borrow;
 
@@ -37,18 +36,14 @@ impl<'a> SawtoothCommand for TransactionSubmissionCommand<'a> {
         let mut batch_submit_request = ClientBatchSubmitRequest::new();
         batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
 
-        let result = self.client.send(&batch_submit_request, CLIENT_BATCH_SUBMIT_REQUEST);
-        let res = match result {
-            Ok(mut future) => match future.get() {
-                Ok(res) => res,
-                Err(e) => panic!(e)
-            },
+        let response = match self.client.send(&batch_submit_request, CLIENT_BATCH_SUBMIT_REQUEST) {
+            Ok(message) => message,
             Err(e) => panic!(e)
         };
 
-        let response = match res.get_message_type() {
+        let response: ClientBatchSubmitResponse = match response.get_message_type() {
             CLIENT_BATCH_SUBMIT_RESPONSE => {
-                protobuf::parse_from_bytes::<ClientBatchSubmitResponse>(res.get_content())
+                protobuf::parse_from_bytes::<ClientBatchSubmitResponse>(response.get_content())
                     .unwrap()
             },
             _ => panic!("Wrong response")
@@ -73,20 +68,14 @@ impl<'a> TransactionListCommand<'a> {
 impl<'a> SawtoothCommand for TransactionListCommand<'a> {
     fn execute(&self) {
         let request = ClientTransactionListRequest::new();
-        let result = self.client.send(&request
-                                      ,CLIENT_TRANSACTION_LIST_REQUEST);
-
-        let res = match result {
-            Ok(mut future) => match future.get() {
-                Ok(res) => res,
-                Err(e) => panic!(e)
-            },
+        let response = match self.client.send(&request,CLIENT_TRANSACTION_LIST_REQUEST) {
+            Ok(message) => message,
             Err(e) => panic!(e)
         };
 
-        let response = match res.get_message_type() {
+        let response: ClientTransactionListResponse = match response.get_message_type() {
             CLIENT_TRANSACTION_LIST_RESPONSE => {
-                protobuf::parse_from_bytes::<ClientTransactionListResponse>(res.get_content())
+                protobuf::parse_from_bytes::<ClientTransactionListResponse>(response.get_content())
                     .unwrap()
             },
             _ => panic!("Wrong response")

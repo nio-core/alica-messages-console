@@ -1,5 +1,5 @@
 use protobuf::Message;
-use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender, SendError, MessageFuture};
+use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
 use sawtooth_sdk::messages::validator;
@@ -30,11 +30,18 @@ impl<'a> Client<'a> {
     }
 
     pub fn send(&self, request: &dyn protobuf::Message, request_type: validator::Message_MessageType)
-        -> Result<MessageFuture, SendError> {
+        -> Result<validator::Message, CommunicationError> {
         let (sender, _receiver) = self.connection.create();
-        sender.send(request_type,
-                    uuid::Uuid::new_v4().to_string().as_str(),
-                    &request.write_to_bytes().unwrap())
+        let correlation_id = uuid::Uuid::new_v4().to_string();
+        let message_bytes = &request.write_to_bytes().unwrap();
+
+        match sender.send(request_type, correlation_id.as_str(), message_bytes) {
+            Ok(mut future) => match future.get() {
+                Ok(message) => Ok(message),
+                Err(_) => Err(CommunicationError::new())
+            },
+            Err(_) => Err(CommunicationError::new())
+        }
     }
 
     fn transaction_header_for(&self, message: &AlicaMessage) -> TransactionHeader {
@@ -149,5 +156,14 @@ impl AlicaMessage {
         )
             .as_bytes()
             .to_vec()
+    }
+}
+
+#[derive(Debug)]
+pub struct CommunicationError;
+
+impl CommunicationError {
+    pub fn new() -> Self {
+        CommunicationError {}
     }
 }

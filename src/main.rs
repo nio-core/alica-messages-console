@@ -14,10 +14,8 @@ fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessage {
 
 fn main() {
     let args = get_commandline_arguments();
-
     let validator_url = args.value_of("connect").unwrap();
     let client = Client::new(String::from(validator_url));
-
     let (subcommand, subcommand_args) = args.subcommand();
 
     let command: Box<dyn SawtoothCommand> = match subcommand {
