@@ -44,6 +44,12 @@ impl<'a> Client<'a> {
         }
     }
 
+    pub fn get_namespace(&self) -> String {
+        let namespace = helper::calculate_checksum(&self.family_name);
+        let prefix = &namespace[..6];
+        String::from(prefix)
+    }
+
     fn transaction_header_for(&self, message: &AlicaMessage) -> TransactionHeader {
         let payload_checksum = helper::calculate_checksum(&message.serialize());
         let state_address = self.state_address_for(&message);

@@ -1,7 +1,6 @@
 use alica_messages_client::get_commandline_arguments;
 use alica_messages_client::communication::{AlicaMessage, Client};
-use alica_messages_client::commands::{SawtoothCommand, TransactionSubmissionCommand,
-                                      TransactionListCommand};
+use alica_messages_client::commands::{SawtoothCommand, TransactionSubmissionCommand, TransactionListCommand, StateListCommand};
 
 fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessage {
     AlicaMessage::new(
@@ -28,10 +27,13 @@ fn main() {
                 }
             };
 
-            std::boxed::Box::new(TransactionSubmissionCommand::new(&client, alica_message_from(args)))
+            Box::new(TransactionSubmissionCommand::new(&client, alica_message_from(args)))
         },
         "list" => {
-            std::boxed::Box::new(TransactionListCommand::new(&client))
+            Box::new(TransactionListCommand::new(&client))
+        },
+        "state" => {
+            Box::new(StateListCommand::new(&client))
         },
         _ => {
             println!("No subcommand supplied");

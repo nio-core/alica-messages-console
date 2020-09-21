@@ -50,6 +50,10 @@ pub fn get_commandline_arguments<'a>() -> clap::ArgMatches<'a> {
                     .help("The timestamp of the moment the message was recorded"),
             ))
         .subcommand(clap::SubCommand::with_name("list")
-            .help("Lists all transaction in the blockchain"))
+            .help("Lists all transaction in the blockchain")
+        )
+        .subcommand(clap::SubCommand::with_name("state")
+            .help("List all state entries in the blockchain")
+        )
         .get_matches()
 }

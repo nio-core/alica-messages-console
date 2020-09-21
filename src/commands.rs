@@ -94,6 +94,52 @@ impl<'a> SawtoothCommand for TransactionListCommand<'a> {
     }
 }
 
+use sawtooth_sdk::messages::client_state::{ClientStateListRequest, ClientStateListResponse};
+use sawtooth_sdk::messages::validator::Message_MessageType::{CLIENT_STATE_LIST_REQUEST,
+                                                             CLIENT_STATE_LIST_RESPONSE};
+
+pub struct StateListCommand<'a> {
+    client: &'a Client<'a>
+}
+
+impl<'a> StateListCommand<'a> {
+    pub fn new(client: &'a Client) -> Self {
+        StateListCommand {
+            client
+        }
+    }
+}
+
+impl<'a> SawtoothCommand for StateListCommand<'a> {
+    fn execute(&self) -> Result<(), ExecutionError> {
+        let request = ClientStateListRequest::new();
+        let response = match self.client.send(&request,CLIENT_STATE_LIST_REQUEST) {
+            Ok(message) => message,
+            Err(_) => return Err(ExecutionError::new("Communication with validator failed"))
+        };
+
+        let response: ClientStateListResponse = match response.get_message_type() {
+            CLIENT_STATE_LIST_RESPONSE => {
+                protobuf::parse_from_bytes::<ClientStateListResponse>(response.get_content())
+                    .unwrap()
+            },
+            _ => return Err(ExecutionError::new("Wrong response"))
+        };
+
+        let state = response.get_entries();
+        println!("Got {} state entries", state.len());
+
+        for entry in state {
+            if entry.get_address().starts_with(&self.client.get_namespace()) {
+                println!("ADDRESS: {}", entry.get_address());
+                println!("DATA: {:?}", entry.get_data());
+            }
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 pub struct ExecutionError {
     cause: String
