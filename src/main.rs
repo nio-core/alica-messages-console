@@ -22,7 +22,10 @@ fn main() {
         "new" => {
             let args = match subcommand_args {
                 Some(args) => args,
-                None => panic!("No parameters supplied for transaction addition")
+                None => {
+                    println!("No parameters supplied for transaction addition");
+                    return;
+                }
             };
 
             std::boxed::Box::new(TransactionSubmissionCommand::new(&client, alica_message_from(args)))
@@ -30,8 +33,14 @@ fn main() {
         "list" => {
             std::boxed::Box::new(TransactionListCommand::new(&client))
         },
-        _ => panic!("Could not find subcommand")
+        _ => {
+            println!("No subcommand supplied");
+            return;
+        }
     };
 
-    command.execute();
+    match command.execute() {
+        Ok(_) => (),
+        Err(e) => println!("{}", e.message())
+    };
 }
