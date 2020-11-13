@@ -15,7 +15,7 @@ pub struct Client<'a> {
 }
 
 impl<'a> Client<'a> {
-    pub fn new(url: String) -> Self {
+    pub fn new(url: &str) -> Self {
         let context = sawtooth_sdk::signing::create_context("secp256k1")
             .expect("Invalid algorithm name in context creation");
         let private_key = context.new_random_private_key()
@@ -25,7 +25,7 @@ impl<'a> Client<'a> {
             family_name: String::from("alica_messages"),
             family_version: String::from("0.1.0"),
             signer: Signer::new_boxed(context, private_key),
-            connection: ZmqMessageConnection::new(&url)
+            connection: ZmqMessageConnection::new(url)
         }
     }
 
