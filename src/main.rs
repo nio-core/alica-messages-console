@@ -1,8 +1,8 @@
 use alica_messages_client::get_commandline_arguments;
-use alica_messages_client::communication::{AlicaMessage, Client};
 use alica_messages_client::command::SawtoothCommand;
 use alica_messages_client::command::transaction;
 use alica_messages_client::command::state;
+use alica_messages_client::sawtooth::{AlicaMessage, Client};
 
 fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessage {
     AlicaMessage::new(

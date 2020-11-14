@@ -1,4 +1,4 @@
-use crate::communication::{Client, AlicaMessage};
+use crate::sawtooth::{AlicaMessage, Client};
 use crate::command::{SawtoothCommand, ExecutionResult};
 use crate::command::Error::{ClientError};
 

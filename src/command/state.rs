@@ -1,4 +1,4 @@
-use crate::communication::Client;
+use crate::sawtooth::Client;
 use crate::command::{SawtoothCommand, ExecutionResult};
 use crate::command::Error::ClientError;
 
