@@ -1,41 +1,28 @@
 use sawtooth_sdk::messages::validator::Message_MessageType::{CLIENT_TRANSACTION_LIST_REQUEST,
                                                              CLIENT_TRANSACTION_LIST_RESPONSE,
                                                              CLIENT_BATCH_SUBMIT_REQUEST,
-                                                             CLIENT_BATCH_SUBMIT_RESPONSE,
-                                                             CLIENT_STATE_LIST_REQUEST,
-                                                             CLIENT_STATE_LIST_RESPONSE};
+                                                             CLIENT_BATCH_SUBMIT_RESPONSE};
 use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest, ClientBatchSubmitResponse};
 use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest, ClientTransactionListResponse};
-use sawtooth_sdk::messages::client_state::{ClientStateListRequest, ClientStateListResponse};
-use crate::communication::{AlicaMessage, Client};
-use crate::commands::CommunicationError::{ValidatorNotReachable, WrongResponse, InvalidResponse};
+use crate::communication::{Client, AlicaMessage};
+use crate::command::{SawtoothCommand};
+use crate::command::CommunicationError::{self, ValidatorNotReachable, InvalidResponse, WrongResponse};
 
-#[derive(Debug)]
-pub enum CommunicationError {
-    ValidatorNotReachable,
-    InvalidResponse,
-    WrongResponse
-}
-
-pub trait SawtoothCommand {
-    fn execute(&self) -> Result<(), CommunicationError>;
-}
-
-pub struct TransactionSubmissionCommand<'a> {
+pub struct SubmissionCommand<'a> {
     client: &'a Client<'a>,
     message: AlicaMessage
 }
 
-impl<'a> TransactionSubmissionCommand<'a> {
+impl<'a> SubmissionCommand<'a> {
     pub fn new(client: &'a Client, message: AlicaMessage) -> Self {
-        TransactionSubmissionCommand {
+        SubmissionCommand {
             client,
             message
         }
     }
 }
 
-impl<'a> SawtoothCommand for TransactionSubmissionCommand<'a> {
+impl<'a> SawtoothCommand for SubmissionCommand<'a> {
     fn execute(&self) -> Result<(), CommunicationError> {
         let transaction = self.client.transaction_for(&self.message);
         let transactions = vec![transaction];
@@ -49,7 +36,7 @@ impl<'a> SawtoothCommand for TransactionSubmissionCommand<'a> {
 
         let _response: ClientBatchSubmitResponse = match response.get_message_type() {
             CLIENT_BATCH_SUBMIT_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                    .map_err(|_| InvalidResponse),
+                .map_err(|_| InvalidResponse),
             _ => Err(WrongResponse)
         }?;
 
@@ -57,19 +44,19 @@ impl<'a> SawtoothCommand for TransactionSubmissionCommand<'a> {
     }
 }
 
-pub struct TransactionListCommand<'a> {
+pub struct ListCommand<'a> {
     client: &'a Client<'a>
 }
 
-impl<'a> TransactionListCommand<'a> {
+impl<'a> ListCommand<'a> {
     pub fn new(client: &'a Client) -> Self {
-        TransactionListCommand {
+        ListCommand {
             client
         }
     }
 }
 
-impl<'a> SawtoothCommand for TransactionListCommand<'a> {
+impl<'a> SawtoothCommand for ListCommand<'a> {
     fn execute(&self) -> Result<(), CommunicationError> {
         let request = ClientTransactionListRequest::new();
         let response = self.client.send(&request,CLIENT_TRANSACTION_LIST_REQUEST)
@@ -77,7 +64,7 @@ impl<'a> SawtoothCommand for TransactionListCommand<'a> {
 
         let response: ClientTransactionListResponse = match response.get_message_type() {
             CLIENT_TRANSACTION_LIST_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                    .map_err(|_| InvalidResponse),
+                .map_err(|_| InvalidResponse),
             _ => Err(WrongResponse)
         }?;
 
@@ -86,44 +73,6 @@ impl<'a> SawtoothCommand for TransactionListCommand<'a> {
 
         for transaction in transactions {
             println!("{}", transaction.get_header_signature())
-        }
-
-        Ok(())
-    }
-}
-
-pub struct StateListCommand<'a> {
-    client: &'a Client<'a>
-}
-
-impl<'a> StateListCommand<'a> {
-    pub fn new(client: &'a Client) -> Self {
-        StateListCommand {
-            client
-        }
-    }
-}
-
-impl<'a> SawtoothCommand for StateListCommand<'a> {
-    fn execute(&self) -> Result<(), CommunicationError> {
-        let request = ClientStateListRequest::new();
-        let response = self.client.send(&request,CLIENT_STATE_LIST_REQUEST)
-            .map_err(|_| ValidatorNotReachable)?;
-
-        let response: ClientStateListResponse = match response.get_message_type() {
-            CLIENT_STATE_LIST_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                .map_err(|_| InvalidResponse),
-            _ => Err(WrongResponse)
-        }?;
-
-        let state = response.get_entries();
-        println!("Got {} state entries", state.len());
-
-        for entry in state {
-            if entry.get_address().starts_with(&self.client.get_namespace()) {
-                println!("ADDRESS: {}", entry.get_address());
-                println!("DATA: {:?}", entry.get_data());
-            }
         }
 
         Ok(())
