@@ -6,13 +6,11 @@ use sawtooth_sdk::messages::client_state::{ClientStateListRequest, ClientStateLi
 use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest, ClientBatchSubmitResponse};
 use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest, ClientTransactionListResponse};
 use sawtooth_sdk::signing::Signer;
-use crate::helper;
 use crate::sawtooth::Error::{SerializationError, WrongResponse, DeserializationError, RequestError, ResponseError};
 use crate::sawtooth::{Error, AlicaMessage, ComponentFactory};
 
 pub struct Client<'a> {
     factory: Box<dyn ComponentFactory>,
-    family_name: String,
     signer: Signer<'a>,
     connection: ZmqMessageConnection
 }
@@ -26,7 +24,6 @@ impl<'a> Client<'a> {
 
         Client {
             factory: component_factory,
-            family_name: String::from("alica_messages"),
             signer: Signer::new_boxed(context, private_key),
             connection: ZmqMessageConnection::new(url)
         }
@@ -93,11 +90,5 @@ impl<'a> Client<'a> {
     fn parse_response<T>(&self, response: validator::Message) -> Result<T, Error>
         where T: protobuf::Message {
         protobuf::parse_from_bytes::<T>(response.get_content()).map_err(|_| DeserializationError)
-    }
-
-    pub fn get_namespace(&self) -> String {
-        let namespace = helper::calculate_checksum(&self.family_name);
-        let prefix = &namespace[..6];
-        String::from(prefix)
     }
 }

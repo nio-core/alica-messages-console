@@ -38,7 +38,7 @@ fn main() {
             Box::new(transaction::ListCommand::new(&client))
         },
         "state" => {
-            Box::new(state::ListCommand::new(&client))
+            Box::new(state::ListCommand::new(&client, ""))
         },
         _ => {
             println!("No subcommand supplied");
