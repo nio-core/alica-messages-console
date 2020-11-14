@@ -9,14 +9,16 @@ use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest, C
 use sawtooth_sdk::signing::Signer;
 use sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection;
 use crate::helper;
-use crate::communication::Error::{SerializationError, WrongResponse, DeserializationError, RequestError, ResponseError};
+use crate::communication::Error::{SerializationError, WrongResponse, DeserializationError, RequestError, ResponseError, SigningError, KeyError};
 
 pub enum Error {
     RequestError,
     ResponseError,
     WrongResponse,
-    SerializationError,
-    DeserializationError
+    SerializationError(String),
+    DeserializationError,
+    SigningError(String),
+    KeyError(String)
 }
 
 pub struct Client<'a> {
@@ -50,10 +52,13 @@ impl<'a> Client<'a> {
     }
 
     pub fn create_batch(&self, contents: &[&AlicaMessage]) -> Result<(), Error> {
-        let transactions = contents.iter()
-            .map(|message| self.transaction_for(message))
-            .collect();
-        let batch = self.batch_for(&transactions);
+        let mut transactions = Vec::new();
+        transactions.reserve(contents.len());
+        for message in contents {
+            let transaction = self.transaction_for(message, &self.family_name, &self.family_version, &self.signer)?;
+            transactions.push(transaction);
+        }
+        let batch = self.batch_for(&transactions, &self.signer)?;
 
         let mut batch_submit_request = ClientBatchSubmitRequest::new();
         batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
@@ -73,6 +78,18 @@ impl<'a> Client<'a> {
         Ok(response_data.get_transactions().to_vec())
     }
 
+    pub fn send(&self, request: &dyn protobuf::Message, request_type: Message_MessageType)
+                -> Result<validator::Message, Error> {
+        let (sender, _) = self.connection.create();
+        let correlation_id = uuid::Uuid::new_v4().to_string();
+        let message_bytes = &request.write_to_bytes().map_err(|_| SerializationError("Request".to_string()))?;
+
+       sender.send(request_type, &correlation_id, message_bytes)
+            .map(|mut future| future.get())
+            .map_err(|_| ResponseError)?
+            .map_err(|_| RequestError)
+    }
+
     fn validate_response(&self, response: &validator::Message, expected_type: Message_MessageType) -> Result<(), Error> {
         let message_type = response.get_message_type();
         if message_type == expected_type {
@@ -82,100 +99,76 @@ impl<'a> Client<'a> {
         }
     }
 
-    pub fn send(&self, request: &dyn protobuf::Message, request_type: Message_MessageType)
-                -> Result<validator::Message, Error> {
-        let (sender, _) = self.connection.create();
-        let correlation_id = uuid::Uuid::new_v4().to_string();
-        let message_bytes = &request.write_to_bytes().map_err(|_| SerializationError)?;
-
-       sender.send(request_type, &correlation_id, message_bytes)
-            .map(|mut future| future.get())
-            .map_err(|_| ResponseError)?
-            .map_err(|_| RequestError)
-    }
-
     fn parse_response<T>(&self, response: validator::Message) -> Result<T, Error>
         where T: protobuf::Message {
         protobuf::parse_from_bytes::<T>(response.get_content()).map_err(|_| DeserializationError)
     }
 
-    fn transaction_for(&self, message: &AlicaMessage) -> Transaction {
-        let header = self.transaction_header_for(message).write_to_bytes()
-            .expect("Error serializing transaction header");
+    fn transaction_for(&self, message: &AlicaMessage, family_name: &str, family_version: &str, signer: &Signer) -> Result<Transaction, Error> {
+        let header = self.transaction_header_for(message, family_name, family_version, signer)
+            .write_to_bytes()
+            .map_err(|_| SerializationError("Transaction Header".to_string()))?;
+        let header_signature = signer.sign(&header).map_err(|_| SigningError("Transaction Header".to_string()))?;
 
         let mut transaction = Transaction::new();
-        transaction.set_header_signature(
-            self.signer.sign(&header)
-                .expect("Error signing transaction header"),
-        );
+        transaction.set_header_signature(header_signature);
         transaction.set_header(header);
         transaction.set_payload(message.serialize());
 
-        transaction
+        Ok(transaction)
     }
 
-    fn transaction_header_for(&self, message: &AlicaMessage) -> TransactionHeader {
+    fn transaction_header_for(&self, message: &AlicaMessage, family_name: &str, family_version: &str, signer: &Signer) -> TransactionHeader {
         let payload_checksum = helper::calculate_checksum(&message.serialize());
-        let state_address = self.state_address_for(&message);
+        let state_address = self.state_address_for(&message, family_name);
+        let public_key = signer.get_public_key().expect("Error retrieving signer's public key").as_hex();
 
         let mut transaction_header = TransactionHeader::new();
-        transaction_header.set_family_name(self.family_name.clone());
-        transaction_header.set_family_version(self.family_version.clone());
+        transaction_header.set_family_name(family_name.to_string());
+        transaction_header.set_family_version(family_version.to_string());
         transaction_header.set_nonce(helper::random_nonce());
         transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![state_address.clone()]));
         transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![state_address]));
-        transaction_header.set_signer_public_key(
-            self.signer.get_public_key()
-                .expect("Error retrieving signer's public key")
-                .as_hex(),
-        );
-        transaction_header.set_batcher_public_key(
-            self.signer.get_public_key()
-                .expect("Error retrieving signer's public key")
-                .as_hex(),
-        );
+        transaction_header.set_signer_public_key(public_key.clone());
+        transaction_header.set_batcher_public_key(public_key);
         transaction_header.set_payload_sha512(payload_checksum);
 
         transaction_header
     }
 
-    fn batch_for(&self, transactions: &Vec<Transaction>) -> Batch {
-        let header = self.batch_header_for(transactions).write_to_bytes()
-            .expect("Error serializing batch header");
+    fn batch_for(&self, transactions: &Vec<Transaction>, signer: &Signer) -> Result<Batch, Error> {
+        let header = self.batch_header_for(transactions, signer)?.write_to_bytes()
+            .map_err(|_| SerializationError("Batch Header".to_string()))?;
+        let header_signature = signer.sign(&header).map_err(|_| SigningError("Batch Header".to_string()))?;
 
         let mut batch = Batch::new();
-        batch.set_header_signature(
-            self.signer.sign(&header)
-                .expect("Error signing batch header"),
-        );
+        batch.set_header_signature(header_signature);
         batch.set_header(header);
         batch.set_transactions(protobuf::RepeatedField::from_vec(transactions.to_vec()));
 
-        batch
+        Ok(batch)
     }
 
-    fn batch_header_for(&self, transactions: &Vec<Transaction>) -> BatchHeader {
+    fn batch_header_for(&self, transactions: &Vec<Transaction>, signer: &Signer) -> Result<BatchHeader, Error> {
+        let public_key = signer.get_public_key().map_err(|_| KeyError("Batch Header".to_string()))?.as_hex();
+
         let mut header = BatchHeader::new();
-        header.set_signer_public_key(
-            self.signer.get_public_key()
-                .expect("Error retrieving signer's public key")
-                .as_hex(),
-        );
+        header.set_signer_public_key(public_key);
         header.set_transaction_ids(protobuf::RepeatedField::from_vec(
             transactions
                 .iter()
-                .map(|t| String::from(t.get_header_signature()))
+                .map(|transaction| String::from(transaction.get_header_signature()))
                 .collect(),
         ));
 
-        header
+        Ok(header)
     }
 
-    fn state_address_for(&self, message: &AlicaMessage) -> String {
+    fn state_address_for(&self, message: &AlicaMessage, family_name: &str) -> String {
         let payload_part = helper::calculate_checksum(
             &format!("{}{}{}", &message.agent_id, &message.message_type, &message.timestamp));
 
-        let namespace_part = helper::calculate_checksum(&self.family_name);
+        let namespace_part = helper::calculate_checksum(&family_name);
 
         format!("{}{}", &namespace_part[..6], &payload_part[..64])
     }
