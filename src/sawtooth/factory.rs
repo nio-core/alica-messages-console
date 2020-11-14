@@ -1,35 +1,22 @@
 use protobuf::Message;
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
-use crate::sawtooth::{TransactionFactory, AlicaMessage, Error, BatchFactory, ComponentFactory};
+use crate::sawtooth::{TransactionFactory, AlicaMessage, Error, BatchFactory, ComponentFactory, TransactionFamily};
 use crate::sawtooth::Error::{SerializationError, SigningError, KeyError};
 use crate::helper;
 use sawtooth_sdk::signing::Signer;
 
-pub struct AlicaMessageComponentFactory {
-    family_name: String,
-    family_version: String
+pub struct GeneralPurposeComponentFactory {
+    transaction_family: TransactionFamily
 }
 
-impl AlicaMessageComponentFactory {
-    pub fn new() -> Self {
-        AlicaMessageComponentFactory {
-            family_name: "alica_messages".to_string(),
-            family_version: "0.1.0".to_string()
-        }
-    }
-
-    fn state_address_for(&self, message: &AlicaMessage, family_name: &str) -> String {
-        let payload_part = helper::calculate_checksum(
-            &format!("{}{}{}", &message.agent_id, &message.message_type, &message.timestamp));
-
-        let namespace_part = helper::calculate_checksum(&family_name);
-
-        format!("{}{}", &namespace_part[..6], &payload_part[..64])
+impl GeneralPurposeComponentFactory {
+    pub fn new(transaction_family: TransactionFamily) -> Self {
+        GeneralPurposeComponentFactory { transaction_family }
     }
 }
 
-impl TransactionFactory for AlicaMessageComponentFactory {
+impl TransactionFactory for GeneralPurposeComponentFactory {
     fn create_transaction_for(&self, message: &AlicaMessage, header: &TransactionHeader, signer: &Signer)
         -> Result<Transaction, Error> {
         let header = header.write_to_bytes().map_err(|_| SerializationError("Transaction Header".to_string()))?;
@@ -46,12 +33,12 @@ impl TransactionFactory for AlicaMessageComponentFactory {
     fn create_transaction_header_for(&self, message: &AlicaMessage, signer: &Signer)
                               -> Result<TransactionHeader, Error> {
         let payload_checksum = helper::calculate_checksum(&message.serialize());
-        let state_address = self.state_address_for(&message, &self.family_name);
+        let state_address = self.transaction_family.calculate_state_address_for(&message);
         let public_key = signer.get_public_key().map_err(|_| KeyError("Transaction Header".to_string()))?.as_hex();
 
         let mut transaction_header = TransactionHeader::new();
-        transaction_header.set_family_name(self.family_name.clone());
-        transaction_header.set_family_version(self.family_version.clone());
+        transaction_header.set_family_name(self.transaction_family.name());
+        transaction_header.set_family_version(self.transaction_family.version());
         transaction_header.set_nonce(helper::random_nonce());
         transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![state_address.clone()]));
         transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![state_address]));
@@ -63,7 +50,7 @@ impl TransactionFactory for AlicaMessageComponentFactory {
     }
 }
 
-impl BatchFactory for AlicaMessageComponentFactory {
+impl BatchFactory for GeneralPurposeComponentFactory {
     fn create_batch_for(&self, transactions: &Vec<Transaction>, header: &BatchHeader, signer: &Signer) -> Result<Batch, Error> {
         let header = header.write_to_bytes().map_err(|_| SerializationError("Batch Header".to_string()))?;
         let header_signature = signer.sign(&header).map_err(|_| SigningError("Batch Header".to_string()))?;
@@ -92,4 +79,4 @@ impl BatchFactory for AlicaMessageComponentFactory {
     }
 }
 
-impl ComponentFactory for AlicaMessageComponentFactory {}
+impl ComponentFactory for GeneralPurposeComponentFactory {}

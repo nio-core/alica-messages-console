@@ -3,6 +3,11 @@ pub mod factory;
 
 pub use communication::Client;
 
+use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
+use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
+use sawtooth_sdk::signing::Signer;
+use crate::helper;
+
 pub enum Error {
     RequestError,
     ResponseError,
@@ -11,6 +16,35 @@ pub enum Error {
     DeserializationError,
     SigningError(String),
     KeyError(String)
+}
+
+pub struct TransactionFamily {
+    name: String,
+    version: String
+}
+
+impl TransactionFamily {
+    pub fn new(name: &str, version: &str) -> Self {
+        TransactionFamily {
+            name: name.to_string(),
+            version: version.to_string()
+        }
+    }
+
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    pub fn version(&self) -> String {
+        self.version.clone()
+    }
+
+    fn calculate_state_address_for(&self, message: &AlicaMessage) -> String {
+        let payload_part = helper::calculate_checksum(
+            &format!("{}{}{}", &message.agent_id, &message.message_type, &message.timestamp));
+        let namespace_part = helper::calculate_checksum(&self.name);
+        format!("{}{}", &namespace_part[..6], &payload_part[..64])
+    }
 }
 
 #[derive(Debug)]
@@ -32,19 +66,9 @@ impl AlicaMessage {
     }
 
     pub fn serialize(&self) -> Vec<u8> {
-        format!(
-            "{}|{}|{}|{}",
-            &self.agent_id, &self.message_type, &self.message, &self.timestamp
-        )
-            .as_bytes()
-            .to_vec()
+        format!("{}|{}|{}|{}", &self.agent_id, &self.message_type, &self.message, &self.timestamp).as_bytes().to_vec()
     }
 }
-
-
-use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
-use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
-use sawtooth_sdk::signing::Signer;
 
 pub trait ComponentFactory: TransactionFactory + BatchFactory {}
 

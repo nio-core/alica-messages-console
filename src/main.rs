@@ -2,8 +2,8 @@ use alica_messages_client::get_commandline_arguments;
 use alica_messages_client::command::SawtoothCommand;
 use alica_messages_client::command::transaction;
 use alica_messages_client::command::state;
-use alica_messages_client::sawtooth::{AlicaMessage, Client};
-use alica_messages_client::sawtooth::factory::AlicaMessageComponentFactory;
+use alica_messages_client::sawtooth::{AlicaMessage, Client, TransactionFamily};
+use alica_messages_client::sawtooth::factory::GeneralPurposeComponentFactory;
 
 fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessage {
     AlicaMessage::new(
@@ -18,7 +18,8 @@ fn main() {
     let args = get_commandline_arguments();
     let validator_url = args.value_of("connect").unwrap();
 
-    let component_factory = AlicaMessageComponentFactory::new();
+    let transaction_family = TransactionFamily::new("alica_messages", "0.1.0");
+    let component_factory = GeneralPurposeComponentFactory::new(transaction_family);
     let client = Client::new(validator_url, Box::from(component_factory));
 
     let (subcommand, subcommand_args) = args.subcommand();
