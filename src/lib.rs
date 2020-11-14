@@ -1,6 +1,7 @@
 pub mod communication;
+pub mod sawtooth;
 pub mod helper;
-pub mod commands;
+pub mod command;
 
 pub fn get_commandline_arguments<'a>() -> clap::ArgMatches<'a> {
     clap::App::new("alica-messages")

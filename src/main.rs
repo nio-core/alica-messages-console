@@ -1,6 +1,9 @@
 use alica_messages_client::get_commandline_arguments;
-use alica_messages_client::communication::{AlicaMessage, Client};
-use alica_messages_client::commands::{SawtoothCommand, TransactionSubmissionCommand, TransactionListCommand, StateListCommand};
+use alica_messages_client::command::SawtoothCommand;
+use alica_messages_client::command::transaction;
+use alica_messages_client::command::state;
+use alica_messages_client::sawtooth::{AlicaMessage, Client, TransactionFamily};
+use alica_messages_client::sawtooth::factory::GeneralPurposeComponentFactory;
 
 fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessage {
     AlicaMessage::new(
@@ -14,9 +17,12 @@ fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessage {
 fn main() {
     let args = get_commandline_arguments();
     let validator_url = args.value_of("connect").unwrap();
-    let client = Client::new(String::from(validator_url));
-    let (subcommand, subcommand_args) = args.subcommand();
 
+    let transaction_family = TransactionFamily::new("alica_messages", "0.1.0");
+    let component_factory = GeneralPurposeComponentFactory::new(transaction_family);
+    let client = Client::new(validator_url, Box::from(component_factory));
+
+    let (subcommand, subcommand_args) = args.subcommand();
     let command: Box<dyn SawtoothCommand> = match subcommand {
         "new" => {
             let args = match subcommand_args {
@@ -27,13 +33,13 @@ fn main() {
                 }
             };
 
-            Box::new(TransactionSubmissionCommand::new(&client, alica_message_from(args)))
+            Box::new(transaction::SubmissionCommand::new(&client, alica_message_from(args)))
         },
         "list" => {
-            Box::new(TransactionListCommand::new(&client))
+            Box::new(transaction::ListCommand::new(&client))
         },
         "state" => {
-            Box::new(StateListCommand::new(&client))
+            Box::new(state::ListCommand::new(&client, ""))
         },
         _ => {
             println!("No subcommand supplied");
@@ -41,8 +47,5 @@ fn main() {
         }
     };
 
-    match command.execute() {
-        Ok(_) => (),
-        Err(e) => println!("{}", e.message())
-    };
+    command.execute().expect("Command execution failed");
 }
