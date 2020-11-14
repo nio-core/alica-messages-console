@@ -1,9 +1,6 @@
-use sawtooth_sdk::messages::validator::Message_MessageType::{CLIENT_STATE_LIST_REQUEST,
-                                                             CLIENT_STATE_LIST_RESPONSE};
-use sawtooth_sdk::messages::client_state::{ClientStateListRequest, ClientStateListResponse};
 use crate::communication::Client;
 use crate::command::{SawtoothCommand, ExecutionResult};
-use crate::command::Error::ExecutionError;
+use crate::command::Error::ClientError;
 
 pub struct ListCommand<'a> {
     client: &'a Client<'a>
@@ -19,20 +16,11 @@ impl<'a> ListCommand<'a> {
 
 impl<'a> SawtoothCommand for ListCommand<'a> {
     fn execute(&self) -> ExecutionResult {
-        let request = ClientStateListRequest::new();
-        let response = self.client.send(&request,CLIENT_STATE_LIST_REQUEST)
-            .map_err(|_| ExecutionError)?;
+        let state_entries = self.client.list_state_entries().map_err(|_| ClientError)?;
 
-        let response: ClientStateListResponse = match response.get_message_type() {
-            CLIENT_STATE_LIST_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                .map_err(|_| ExecutionError),
-            _ => Err(ExecutionError)
-        }?;
+        println!("Got {} state entries", state_entries.len());
 
-        let state = response.get_entries();
-        println!("Got {} state entries", state.len());
-
-        for entry in state {
+        for entry in state_entries {
             if entry.get_address().starts_with(&self.client.get_namespace()) {
                 println!("ADDRESS: {}", entry.get_address());
                 println!("DATA: {:?}", entry.get_data());

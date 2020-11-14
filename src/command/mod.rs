@@ -3,6 +3,7 @@ pub mod transaction;
 
 #[derive(Debug)]
 pub enum Error {
+    ClientError,
     ExecutionError
 }
 

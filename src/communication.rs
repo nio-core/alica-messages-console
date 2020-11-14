@@ -2,7 +2,10 @@ use protobuf::Message;
 use sawtooth_sdk::messaging::stream::{MessageConnection, MessageSender};
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
-use sawtooth_sdk::messages::validator;
+use sawtooth_sdk::messages::validator::{self, Message_MessageType};
+use sawtooth_sdk::messages::client_state::{ClientStateListRequest, ClientStateListResponse, ClientStateListResponse_Entry};
+use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest, ClientBatchSubmitResponse};
+use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest, ClientTransactionListResponse};
 use sawtooth_sdk::signing::Signer;
 use sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection;
 use crate::helper;
@@ -34,8 +37,57 @@ impl<'a> Client<'a> {
         }
     }
 
-    pub fn send(&self, request: &dyn protobuf::Message, request_type: validator::Message_MessageType)
-        -> Result<validator::Message, Error> {
+    pub fn list_state_entries(&self) -> Result<Vec<ClientStateListResponse_Entry>, Error> {
+        let request = ClientStateListRequest::new();
+        let response = self.send(&request, Message_MessageType::CLIENT_STATE_LIST_REQUEST)
+            .map_err(|_| ClientError)?;
+
+        let response: ClientStateListResponse = match response.get_message_type() {
+            Message_MessageType::CLIENT_STATE_LIST_RESPONSE => protobuf::parse_from_bytes(response.get_content())
+                .map_err(|_| ClientError),
+            _ => Err(ClientError)
+        }?;
+
+        Ok(response.get_entries().to_vec())
+    }
+
+    pub fn create_batch(&self, contents: &[&AlicaMessage]) -> Result<(), Error> {
+        let transactions = contents.iter()
+            .map(|message| self.transaction_for(message))
+            .collect();
+        let batch = self.batch_for(&transactions);
+
+        let mut batch_submit_request = ClientBatchSubmitRequest::new();
+        batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
+
+        let response = self.send(&batch_submit_request, Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST)
+            .map_err(|_| ClientError)?;
+
+        let _response: ClientBatchSubmitResponse = match response.get_message_type() {
+            Message_MessageType::CLIENT_BATCH_SUBMIT_RESPONSE => protobuf::parse_from_bytes(response.get_content())
+                .map_err(|_| ClientError),
+            _ => Err(ClientError)
+        }?;
+
+        Ok(())
+    }
+
+    pub fn list_transactions(&self) -> Result<Vec<Transaction>, Error> {
+        let request = ClientTransactionListRequest::new();
+        let response = self.send(&request, Message_MessageType::CLIENT_TRANSACTION_LIST_REQUEST)
+            .map_err(|_| ClientError)?;
+
+        let response: ClientTransactionListResponse = match response.get_message_type() {
+            Message_MessageType::CLIENT_TRANSACTION_LIST_RESPONSE => protobuf::parse_from_bytes(response.get_content())
+                .map_err(|_| ClientError),
+            _ => Err(ClientError)
+        }?;
+
+        Ok(response.get_transactions().to_vec())
+    }
+
+    pub fn send(&self, request: &dyn protobuf::Message, request_type: Message_MessageType)
+                -> Result<validator::Message, Error> {
         let (sender, _receiver) = self.connection.create();
         let correlation_id = uuid::Uuid::new_v4().to_string();
         let message_bytes = &request.write_to_bytes().unwrap();
@@ -49,10 +101,19 @@ impl<'a> Client<'a> {
         }
     }
 
-    pub fn get_namespace(&self) -> String {
-        let namespace = helper::calculate_checksum(&self.family_name);
-        let prefix = &namespace[..6];
-        String::from(prefix)
+    fn transaction_for(&self, message: &AlicaMessage) -> Transaction {
+        let header = self.transaction_header_for(message).write_to_bytes()
+            .expect("Error serializing transaction header");
+
+        let mut transaction = Transaction::new();
+        transaction.set_header_signature(
+            self.signer.sign(&header)
+                .expect("Error signing transaction header"),
+        );
+        transaction.set_header(header);
+        transaction.set_payload(message.serialize());
+
+        transaction
     }
 
     fn transaction_header_for(&self, message: &AlicaMessage) -> TransactionHeader {
@@ -80,19 +141,19 @@ impl<'a> Client<'a> {
         transaction_header
     }
 
-    pub(crate) fn transaction_for(&self, message: &AlicaMessage) -> Transaction {
-        let header = self.transaction_header_for(message).write_to_bytes()
-            .expect("Error serializing transaction header");
+    fn batch_for(&self, transactions: &Vec<Transaction>) -> Batch {
+        let header = self.batch_header_for(transactions).write_to_bytes()
+            .expect("Error serializing batch header");
 
-        let mut transaction = Transaction::new();
-        transaction.set_header_signature(
+        let mut batch = Batch::new();
+        batch.set_header_signature(
             self.signer.sign(&header)
-                .expect("Error signing transaction header"),
+                .expect("Error signing batch header"),
         );
-        transaction.set_header(header);
-        transaction.set_payload(message.serialize());
+        batch.set_header(header);
+        batch.set_transactions(protobuf::RepeatedField::from_vec(transactions.to_vec()));
 
-        transaction
+        batch
     }
 
     fn batch_header_for(&self, transactions: &Vec<Transaction>) -> BatchHeader {
@@ -112,21 +173,6 @@ impl<'a> Client<'a> {
         header
     }
 
-    pub(crate) fn batch_for(&self, transactions: &Vec<Transaction>) -> Batch {
-        let header = self.batch_header_for(transactions).write_to_bytes()
-            .expect("Error serializing batch header");
-
-        let mut batch = Batch::new();
-        batch.set_header_signature(
-            self.signer.sign(&header)
-                .expect("Error signing batch header"),
-        );
-        batch.set_header(header);
-        batch.set_transactions(protobuf::RepeatedField::from_vec(transactions.to_vec()));
-
-        batch
-    }
-
     fn state_address_for(&self, message: &AlicaMessage) -> String {
         let payload_part = helper::calculate_checksum(
             &format!("{}{}{}", &message.agent_id, &message.message_type, &message.timestamp));
@@ -134,6 +180,12 @@ impl<'a> Client<'a> {
         let namespace_part = helper::calculate_checksum(&self.family_name);
 
         format!("{}{}", &namespace_part[..6], &payload_part[..64])
+    }
+
+    pub fn get_namespace(&self) -> String {
+        let namespace = helper::calculate_checksum(&self.family_name);
+        let prefix = &namespace[..6];
+        String::from(prefix)
     }
 }
 

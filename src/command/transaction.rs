@@ -1,12 +1,6 @@
-use sawtooth_sdk::messages::validator::Message_MessageType::{CLIENT_TRANSACTION_LIST_REQUEST,
-                                                             CLIENT_TRANSACTION_LIST_RESPONSE,
-                                                             CLIENT_BATCH_SUBMIT_REQUEST,
-                                                             CLIENT_BATCH_SUBMIT_RESPONSE};
-use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest, ClientBatchSubmitResponse};
-use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest, ClientTransactionListResponse};
 use crate::communication::{Client, AlicaMessage};
 use crate::command::{SawtoothCommand, ExecutionResult};
-use crate::command::Error::ExecutionError;
+use crate::command::Error::{ClientError};
 
 pub struct SubmissionCommand<'a> {
     client: &'a Client<'a>,
@@ -24,23 +18,8 @@ impl<'a> SubmissionCommand<'a> {
 
 impl<'a> SawtoothCommand for SubmissionCommand<'a> {
     fn execute(&self) -> ExecutionResult {
-        let transaction = self.client.transaction_for(&self.message);
-        let transactions = vec![transaction];
-        let batch = self.client.batch_for(&transactions);
-
-        let mut batch_submit_request = ClientBatchSubmitRequest::new();
-        batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
-
-        let response = self.client.send(&batch_submit_request, CLIENT_BATCH_SUBMIT_REQUEST)
-            .map_err(|_| ExecutionError)?;
-
-        let _response: ClientBatchSubmitResponse = match response.get_message_type() {
-            CLIENT_BATCH_SUBMIT_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                .map_err(|_| ExecutionError),
-            _ => Err(ExecutionError)
-        }?;
-
-        Ok(())
+        let messages = vec![&self.message];
+        self.client.create_batch(&messages).map_err(|_| ClientError)
     }
 }
 
@@ -58,19 +37,9 @@ impl<'a> ListCommand<'a> {
 
 impl<'a> SawtoothCommand for ListCommand<'a> {
     fn execute(&self) -> ExecutionResult {
-        let request = ClientTransactionListRequest::new();
-        let response = self.client.send(&request,CLIENT_TRANSACTION_LIST_REQUEST)
-            .map_err(|_| ExecutionError)?;
+        let transactions = self.client.list_transactions().map_err(|_| ClientError)?;
 
-        let response: ClientTransactionListResponse = match response.get_message_type() {
-            CLIENT_TRANSACTION_LIST_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                .map_err(|_| ExecutionError),
-            _ => Err(ExecutionError)
-        }?;
-
-        let transactions = response.get_transactions();
         println!("Got {} transactions", transactions.len());
-
         for transaction in transactions {
             println!("{}", transaction.get_header_signature())
         }
