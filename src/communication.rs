@@ -41,7 +41,8 @@ impl<'a> Client<'a> {
         let request = ClientStateListRequest::new();
         let response = self.send(&request, Message_MessageType::CLIENT_STATE_LIST_REQUEST)
             .map_err(|_| ClientError)?;
-        let response = self.parse_response::<ClientStateListResponse>(response, Message_MessageType::CLIENT_STATE_LIST_RESPONSE)?;
+        self.validate_response(&response, Message_MessageType::CLIENT_STATE_LIST_REQUEST)?;
+        let response = self.parse_response::<ClientStateListResponse>(response)?;
         Ok(response.get_entries().to_vec())
     }
 
@@ -56,7 +57,8 @@ impl<'a> Client<'a> {
 
         let response = self.send(&batch_submit_request, Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST)
             .map_err(|_| ClientError)?;
-        let _response = self.parse_response::<ClientBatchSubmitResponse>(response, Message_MessageType::CLIENT_BATCH_SUBMIT_RESPONSE)?;
+        self.validate_response(&response, Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST)?;
+        let _response = self.parse_response::<ClientBatchSubmitResponse>(response)?;
 
         Ok(())
     }
@@ -66,8 +68,18 @@ impl<'a> Client<'a> {
         let response = self.send(&request, Message_MessageType::CLIENT_TRANSACTION_LIST_REQUEST)
             .map_err(|_| ClientError)?;
 
-        let response = self.parse_response::<ClientTransactionListResponse>(response,Message_MessageType::CLIENT_TRANSACTION_LIST_RESPONSE)?;
+        self.validate_response(&response, Message_MessageType::CLIENT_TRANSACTION_LIST_RESPONSE)?;
+        let response = self.parse_response::<ClientTransactionListResponse>(response)?;
         Ok(response.get_transactions().to_vec())
+    }
+
+    fn validate_response(&self, response: &validator::Message, expected_type: Message_MessageType) -> Result<(), Error> {
+        let message_type = response.get_message_type();
+        if message_type == expected_type {
+            Ok(())
+        } else {
+            Err(ClientError)
+        }
     }
 
     pub fn send(&self, request: &dyn protobuf::Message, request_type: Message_MessageType)
@@ -85,14 +97,9 @@ impl<'a> Client<'a> {
         }
     }
 
-    fn parse_response<T>(&self, response: validator::Message, expected_response_type: Message_MessageType) -> Result<T, Error>
+    fn parse_response<T>(&self, response: validator::Message) -> Result<T, Error>
         where T: protobuf::Message {
-        let message_type = response.get_message_type();
-        if message_type == expected_response_type {
-            protobuf::parse_from_bytes::<T>(response.get_content()).map_err(|_| ClientError)
-        } else {
-            Err(ClientError)
-        }
+        protobuf::parse_from_bytes::<T>(response.get_content()).map_err(|_| ClientError)
     }
 
     fn transaction_for(&self, message: &AlicaMessage) -> Transaction {
