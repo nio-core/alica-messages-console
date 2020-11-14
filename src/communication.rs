@@ -39,11 +39,10 @@ impl<'a> Client<'a> {
 
     pub fn list_state_entries(&self) -> Result<Vec<ClientStateListResponse_Entry>, Error> {
         let request = ClientStateListRequest::new();
-        let response = self.send(&request, Message_MessageType::CLIENT_STATE_LIST_REQUEST)
-            .map_err(|_| ClientError)?;
+        let response = self.send(&request, Message_MessageType::CLIENT_STATE_LIST_REQUEST)?;
         self.validate_response(&response, Message_MessageType::CLIENT_STATE_LIST_REQUEST)?;
-        let response = self.parse_response::<ClientStateListResponse>(response)?;
-        Ok(response.get_entries().to_vec())
+        let response_data = self.parse_response::<ClientStateListResponse>(response)?;
+        Ok(response_data.get_entries().to_vec())
     }
 
     pub fn create_batch(&self, contents: &[&AlicaMessage]) -> Result<(), Error> {
@@ -55,22 +54,19 @@ impl<'a> Client<'a> {
         let mut batch_submit_request = ClientBatchSubmitRequest::new();
         batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
 
-        let response = self.send(&batch_submit_request, Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST)
-            .map_err(|_| ClientError)?;
+        let response = self.send(&batch_submit_request, Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST)?;
         self.validate_response(&response, Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST)?;
-        let _response = self.parse_response::<ClientBatchSubmitResponse>(response)?;
+        self.parse_response::<ClientBatchSubmitResponse>(response)?;
 
         Ok(())
     }
 
     pub fn list_transactions(&self) -> Result<Vec<Transaction>, Error> {
         let request = ClientTransactionListRequest::new();
-        let response = self.send(&request, Message_MessageType::CLIENT_TRANSACTION_LIST_REQUEST)
-            .map_err(|_| ClientError)?;
-
+        let response = self.send(&request, Message_MessageType::CLIENT_TRANSACTION_LIST_REQUEST)?;
         self.validate_response(&response, Message_MessageType::CLIENT_TRANSACTION_LIST_RESPONSE)?;
-        let response = self.parse_response::<ClientTransactionListResponse>(response)?;
-        Ok(response.get_transactions().to_vec())
+        let response_data = self.parse_response::<ClientTransactionListResponse>(response)?;
+        Ok(response_data.get_transactions().to_vec())
     }
 
     fn validate_response(&self, response: &validator::Message, expected_type: Message_MessageType) -> Result<(), Error> {
