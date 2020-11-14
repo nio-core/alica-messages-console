@@ -6,6 +6,11 @@ use sawtooth_sdk::messages::validator;
 use sawtooth_sdk::signing::Signer;
 use sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection;
 use crate::helper;
+use crate::communication::Error::ClientError;
+
+pub enum Error {
+    ClientError
+}
 
 pub struct Client<'a> {
     family_name: String,
@@ -30,7 +35,7 @@ impl<'a> Client<'a> {
     }
 
     pub fn send(&self, request: &dyn protobuf::Message, request_type: validator::Message_MessageType)
-        -> Result<validator::Message, CommunicationError> {
+        -> Result<validator::Message, Error> {
         let (sender, _receiver) = self.connection.create();
         let correlation_id = uuid::Uuid::new_v4().to_string();
         let message_bytes = &request.write_to_bytes().unwrap();
@@ -38,9 +43,9 @@ impl<'a> Client<'a> {
         match sender.send(request_type, correlation_id.as_str(), message_bytes) {
             Ok(mut future) => match future.get() {
                 Ok(message) => Ok(message),
-                Err(_) => Err(CommunicationError::new())
+                Err(_) => Err(ClientError)
             },
-            Err(_) => Err(CommunicationError::new())
+            Err(_) => Err(ClientError)
         }
     }
 
@@ -162,14 +167,5 @@ impl AlicaMessage {
         )
             .as_bytes()
             .to_vec()
-    }
-}
-
-#[derive(Debug)]
-pub struct CommunicationError;
-
-impl CommunicationError {
-    pub fn new() -> Self {
-        CommunicationError {}
     }
 }
