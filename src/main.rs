@@ -3,6 +3,7 @@ use alica_messages_client::command::SawtoothCommand;
 use alica_messages_client::command::transaction;
 use alica_messages_client::command::state;
 use alica_messages_client::sawtooth::{AlicaMessage, Client};
+use alica_messages_client::sawtooth::factory::AlicaMessageComponentFactory;
 
 fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessage {
     AlicaMessage::new(
@@ -16,9 +17,11 @@ fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessage {
 fn main() {
     let args = get_commandline_arguments();
     let validator_url = args.value_of("connect").unwrap();
-    let client = Client::new(validator_url);
-    let (subcommand, subcommand_args) = args.subcommand();
 
+    let component_factory = AlicaMessageComponentFactory::new();
+    let client = Client::new(validator_url, Box::from(component_factory));
+
+    let (subcommand, subcommand_args) = args.subcommand();
     let command: Box<dyn SawtoothCommand> = match subcommand {
         "new" => {
             let args = match subcommand_args {
