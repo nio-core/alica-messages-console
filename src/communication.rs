@@ -41,13 +41,7 @@ impl<'a> Client<'a> {
         let request = ClientStateListRequest::new();
         let response = self.send(&request, Message_MessageType::CLIENT_STATE_LIST_REQUEST)
             .map_err(|_| ClientError)?;
-
-        let response: ClientStateListResponse = match response.get_message_type() {
-            Message_MessageType::CLIENT_STATE_LIST_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                .map_err(|_| ClientError),
-            _ => Err(ClientError)
-        }?;
-
+        let response = self.parse_response::<ClientStateListResponse>(response, Message_MessageType::CLIENT_STATE_LIST_RESPONSE)?;
         Ok(response.get_entries().to_vec())
     }
 
@@ -62,12 +56,7 @@ impl<'a> Client<'a> {
 
         let response = self.send(&batch_submit_request, Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST)
             .map_err(|_| ClientError)?;
-
-        let _response: ClientBatchSubmitResponse = match response.get_message_type() {
-            Message_MessageType::CLIENT_BATCH_SUBMIT_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                .map_err(|_| ClientError),
-            _ => Err(ClientError)
-        }?;
+        let _response = self.parse_response::<ClientBatchSubmitResponse>(response, Message_MessageType::CLIENT_BATCH_SUBMIT_RESPONSE)?;
 
         Ok(())
     }
@@ -77,12 +66,7 @@ impl<'a> Client<'a> {
         let response = self.send(&request, Message_MessageType::CLIENT_TRANSACTION_LIST_REQUEST)
             .map_err(|_| ClientError)?;
 
-        let response: ClientTransactionListResponse = match response.get_message_type() {
-            Message_MessageType::CLIENT_TRANSACTION_LIST_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                .map_err(|_| ClientError),
-            _ => Err(ClientError)
-        }?;
-
+        let response = self.parse_response::<ClientTransactionListResponse>(response,Message_MessageType::CLIENT_TRANSACTION_LIST_RESPONSE)?;
         Ok(response.get_transactions().to_vec())
     }
 
@@ -98,6 +82,16 @@ impl<'a> Client<'a> {
                 Err(_) => Err(ClientError)
             },
             Err(_) => Err(ClientError)
+        }
+    }
+
+    fn parse_response<T>(&self, response: validator::Message, expected_response_type: Message_MessageType) -> Result<T, Error>
+        where T: protobuf::Message {
+        let message_type = response.get_message_type();
+        if message_type == expected_response_type {
+            protobuf::parse_from_bytes::<T>(response.get_content()).map_err(|_| ClientError)
+        } else {
+            Err(ClientError)
         }
     }
 
