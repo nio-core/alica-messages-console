@@ -9,10 +9,14 @@ use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest, C
 use sawtooth_sdk::signing::Signer;
 use sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection;
 use crate::helper;
-use crate::communication::Error::ClientError;
+use crate::communication::Error::{SerializationError, WrongResponse, DeserializationError, RequestError, ResponseError};
 
 pub enum Error {
-    ClientError
+    RequestError,
+    ResponseError,
+    WrongResponse,
+    SerializationError,
+    DeserializationError
 }
 
 pub struct Client<'a> {
@@ -74,28 +78,25 @@ impl<'a> Client<'a> {
         if message_type == expected_type {
             Ok(())
         } else {
-            Err(ClientError)
+            Err(WrongResponse)
         }
     }
 
     pub fn send(&self, request: &dyn protobuf::Message, request_type: Message_MessageType)
                 -> Result<validator::Message, Error> {
-        let (sender, _receiver) = self.connection.create();
+        let (sender, _) = self.connection.create();
         let correlation_id = uuid::Uuid::new_v4().to_string();
-        let message_bytes = &request.write_to_bytes().unwrap();
+        let message_bytes = &request.write_to_bytes().map_err(|_| SerializationError)?;
 
-        match sender.send(request_type, correlation_id.as_str(), message_bytes) {
-            Ok(mut future) => match future.get() {
-                Ok(message) => Ok(message),
-                Err(_) => Err(ClientError)
-            },
-            Err(_) => Err(ClientError)
-        }
+       sender.send(request_type, &correlation_id, message_bytes)
+            .map(|mut future| future.get())
+            .map_err(|_| ResponseError)?
+            .map_err(|_| RequestError)
     }
 
     fn parse_response<T>(&self, response: validator::Message) -> Result<T, Error>
         where T: protobuf::Message {
-        protobuf::parse_from_bytes::<T>(response.get_content()).map_err(|_| ClientError)
+        protobuf::parse_from_bytes::<T>(response.get_content()).map_err(|_| DeserializationError)
     }
 
     fn transaction_for(&self, message: &AlicaMessage) -> Transaction {
