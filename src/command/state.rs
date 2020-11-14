@@ -2,8 +2,8 @@ use sawtooth_sdk::messages::validator::Message_MessageType::{CLIENT_STATE_LIST_R
                                                              CLIENT_STATE_LIST_RESPONSE};
 use sawtooth_sdk::messages::client_state::{ClientStateListRequest, ClientStateListResponse};
 use crate::communication::Client;
-use crate::command::{SawtoothCommand, CommunicationError};
-use crate::command::CommunicationError::{ValidatorNotReachable, InvalidResponse, WrongResponse};
+use crate::command::{SawtoothCommand, ExecutionResult};
+use crate::command::Error::ExecutionError;
 
 pub struct ListCommand<'a> {
     client: &'a Client<'a>
@@ -18,15 +18,15 @@ impl<'a> ListCommand<'a> {
 }
 
 impl<'a> SawtoothCommand for ListCommand<'a> {
-    fn execute(&self) -> Result<(), CommunicationError> {
+    fn execute(&self) -> ExecutionResult {
         let request = ClientStateListRequest::new();
         let response = self.client.send(&request,CLIENT_STATE_LIST_REQUEST)
-            .map_err(|_| ValidatorNotReachable)?;
+            .map_err(|_| ExecutionError)?;
 
         let response: ClientStateListResponse = match response.get_message_type() {
             CLIENT_STATE_LIST_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                .map_err(|_| InvalidResponse),
-            _ => Err(WrongResponse)
+                .map_err(|_| ExecutionError),
+            _ => Err(ExecutionError)
         }?;
 
         let state = response.get_entries();

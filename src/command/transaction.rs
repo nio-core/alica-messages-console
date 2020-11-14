@@ -5,8 +5,8 @@ use sawtooth_sdk::messages::validator::Message_MessageType::{CLIENT_TRANSACTION_
 use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest, ClientBatchSubmitResponse};
 use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest, ClientTransactionListResponse};
 use crate::communication::{Client, AlicaMessage};
-use crate::command::{SawtoothCommand};
-use crate::command::CommunicationError::{self, ValidatorNotReachable, InvalidResponse, WrongResponse};
+use crate::command::{SawtoothCommand, ExecutionResult};
+use crate::command::Error::ExecutionError;
 
 pub struct SubmissionCommand<'a> {
     client: &'a Client<'a>,
@@ -23,7 +23,7 @@ impl<'a> SubmissionCommand<'a> {
 }
 
 impl<'a> SawtoothCommand for SubmissionCommand<'a> {
-    fn execute(&self) -> Result<(), CommunicationError> {
+    fn execute(&self) -> ExecutionResult {
         let transaction = self.client.transaction_for(&self.message);
         let transactions = vec![transaction];
         let batch = self.client.batch_for(&transactions);
@@ -32,12 +32,12 @@ impl<'a> SawtoothCommand for SubmissionCommand<'a> {
         batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
 
         let response = self.client.send(&batch_submit_request, CLIENT_BATCH_SUBMIT_REQUEST)
-            .map_err(|_| ValidatorNotReachable)?;
+            .map_err(|_| ExecutionError)?;
 
         let _response: ClientBatchSubmitResponse = match response.get_message_type() {
             CLIENT_BATCH_SUBMIT_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                .map_err(|_| InvalidResponse),
-            _ => Err(WrongResponse)
+                .map_err(|_| ExecutionError),
+            _ => Err(ExecutionError)
         }?;
 
         Ok(())
@@ -57,15 +57,15 @@ impl<'a> ListCommand<'a> {
 }
 
 impl<'a> SawtoothCommand for ListCommand<'a> {
-    fn execute(&self) -> Result<(), CommunicationError> {
+    fn execute(&self) -> ExecutionResult {
         let request = ClientTransactionListRequest::new();
         let response = self.client.send(&request,CLIENT_TRANSACTION_LIST_REQUEST)
-            .map_err(|_| ValidatorNotReachable)?;
+            .map_err(|_| ExecutionError)?;
 
         let response: ClientTransactionListResponse = match response.get_message_type() {
             CLIENT_TRANSACTION_LIST_RESPONSE => protobuf::parse_from_bytes(response.get_content())
-                .map_err(|_| InvalidResponse),
-            _ => Err(WrongResponse)
+                .map_err(|_| ExecutionError),
+            _ => Err(ExecutionError)
         }?;
 
         let transactions = response.get_transactions();
