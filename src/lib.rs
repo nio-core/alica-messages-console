@@ -30,45 +30,55 @@ pub fn get_commandline_arguments<'a>() -> clap::ArgMatches<'a> {
                 .required(false)
                 .help("Path to the Private Key for interactions with the sawtooth network")
         )
-        .subcommand(clap::SubCommand::with_name("new")
-            .help("Adds new transaction to the chain")
-            .arg(
-                clap::Arg::with_name("agent id")
-                    .short("i")
-                    .long("id")
-                    .takes_value(true)
-                    .required(true)
-                    .help("The unique identifier of the sending agent"),
+        .subcommand(clap::SubCommand::with_name("batch")
+            .help("Every interaction possibility for batches")
+            .subcommand(clap::SubCommand::with_name("create")
+                .help("Adds new single transaction batch to the chain")
+                .arg(
+                    clap::Arg::with_name("agent id")
+                        .short("i")
+                        .long("id")
+                        .takes_value(true)
+                        .required(true)
+                        .help("The unique identifier of the sending agent"),
+                )
+                .arg(
+                    clap::Arg::with_name("message type")
+                        .short("t")
+                        .long("type")
+                        .takes_value(true)
+                        .required(true)
+                        .help("The type of the message to log"),
+                )
+                .arg(
+                    clap::Arg::with_name("message")
+                        .short("m")
+                        .long("message")
+                        .takes_value(true)
+                        .required(true)
+                        .help("The message to log"),
+                )
+                .arg(
+                    clap::Arg::with_name("timestamp")
+                        .short("z")
+                        .long("timestamp")
+                        .required(true)
+                        .takes_value(true)
+                        .help("The timestamp of the moment the message was recorded"),
+                )
             )
-            .arg(
-                clap::Arg::with_name("message type")
-                    .short("t")
-                    .long("type")
-                    .takes_value(true)
-                    .required(true)
-                    .help("The type of the message to log"),
+        )
+        .subcommand(clap::SubCommand::with_name("transaction")
+            .help("Every interaction possibility for transactions")
+            .subcommand(clap::SubCommand::with_name("list")
+                .help("Lists all transaction in the blockchain")
             )
-            .arg(
-                clap::Arg::with_name("message")
-                    .short("m")
-                    .long("message")
-                    .takes_value(true)
-                    .required(true)
-                    .help("The message to log"),
-            )
-            .arg(
-                clap::Arg::with_name("timestamp")
-                    .short("z")
-                    .long("timestamp")
-                    .required(true)
-                    .takes_value(true)
-                    .help("The timestamp of the moment the message was recorded"),
-            ))
-        .subcommand(clap::SubCommand::with_name("list")
-            .help("Lists all transaction in the blockchain")
         )
         .subcommand(clap::SubCommand::with_name("state")
-            .help("List all state entries in the blockchain")
+            .help("Every interaction possibility for state entries")
+            .subcommand(clap::SubCommand::with_name("list")
+                .help("List all state entries in the blockchain")
+            )
         )
         .get_matches()
 }
