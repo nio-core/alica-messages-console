@@ -3,7 +3,7 @@ use crate::command::{SawtoothCommand, ExecutionResult};
 use crate::command::Error::{ClientError};
 
 pub struct SubmissionCommand<'a> {
-    client: &'a Client<'a>,
+    client: &'a Client,
     message: AlicaMessage
 }
 
@@ -24,7 +24,7 @@ impl<'a> SawtoothCommand for SubmissionCommand<'a> {
 }
 
 pub struct ListCommand<'a> {
-    client: &'a Client<'a>
+    client: &'a Client
 }
 
 impl<'a> ListCommand<'a> {

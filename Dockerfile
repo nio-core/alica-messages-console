@@ -9,10 +9,11 @@ RUN apt update \
     && apt remove -y curl gpg \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd sawtooth
+    && useradd -m sawtooth
 
 COPY --chown=sawtooth:sawtooth target/release/alica-messages-client /usr/bin
 
 USER sawtooth
+WORKDIR /home/sawtooth
 
 CMD ["bash"]

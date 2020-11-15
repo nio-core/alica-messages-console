@@ -5,7 +5,6 @@ pub use communication::Client;
 
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
-use sawtooth_sdk::signing::Signer;
 use crate::helper;
 
 pub enum Error {
@@ -73,13 +72,13 @@ impl AlicaMessage {
 pub trait ComponentFactory: TransactionFactory + BatchFactory {}
 
 pub trait TransactionFactory {
-    fn create_transaction_for(&self, message: &AlicaMessage, header: &TransactionHeader, signer: &Signer) -> Result<Transaction, Error>;
+    fn create_transaction_for(&self, message: &AlicaMessage, header: &TransactionHeader) -> Result<Transaction, Error>;
 
-    fn create_transaction_header_for(&self, message: &AlicaMessage, signer: &Signer) -> Result<TransactionHeader, Error>;
+    fn create_transaction_header_for(&self, message: &AlicaMessage) -> Result<TransactionHeader, Error>;
 }
 
 pub trait BatchFactory {
-    fn create_batch_for(&self, transactions: &Vec<Transaction>, header: &BatchHeader, signer: &Signer) -> Result<Batch, Error>;
+    fn create_batch_for(&self, transactions: &Vec<Transaction>, header: &BatchHeader) -> Result<Batch, Error>;
 
-    fn create_batch_header_for(&self, transactions: &Vec<Transaction>, signer: &Signer) -> Result<BatchHeader, Error>;
+    fn create_batch_header_for(&self, transactions: &Vec<Transaction>) -> Result<BatchHeader, Error>;
 }

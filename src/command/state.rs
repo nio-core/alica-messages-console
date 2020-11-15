@@ -3,7 +3,7 @@ use crate::command::{SawtoothCommand, ExecutionResult};
 use crate::command::Error::ClientError;
 
 pub struct ListCommand<'a> {
-    client: &'a Client<'a>,
+    client: &'a Client,
     namespace: &'a str
 }
 
