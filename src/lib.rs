@@ -104,7 +104,7 @@ fn determine_key_file(configured_path: Option<Box<Path>>) -> Box<Path> {
     let current_dir = env::current_dir().expect("Invalid working directory");
 
     let mut default_path = home_dir.unwrap_or(current_dir);
-    default_path.set_file_name(default_file_name);
+    default_path.push(default_file_name);
     let default_path = default_path.into_boxed_path();
 
     configured_path.unwrap_or(default_path)
@@ -125,6 +125,7 @@ fn create_signer_from<'a>(path: &Box<Path>) -> signing::Signer<'a> {
 }
 
 fn create_private_key_from_file(path: &Box<Path>) -> Box<dyn signing::PrivateKey> {
+    println!("Using key file at {}", path.to_str().expect("Could not display key file"));
     let raw_private_key = fs::read_to_string(path.to_str().expect("Invalid key file")).expect("Invalid key file");
     let private_key = signing::secp256k1::Secp256k1PrivateKey::from_hex(&raw_private_key)
         .expect("Private Key is not hex");
@@ -133,6 +134,7 @@ fn create_private_key_from_file(path: &Box<Path>) -> Box<dyn signing::PrivateKey
 
 fn write_private_key_to_file(private_key: &Box<dyn signing::PrivateKey>, path: &Box<Path>) {
     let key_contents = private_key.as_hex();
+    println!("Creating key file at {}", path.to_str().expect("Could not display key file"));
     fs::write(path, key_contents.as_bytes()).expect("Could not write key file");
 }
 
