@@ -5,26 +5,18 @@ use sawtooth_sdk::messages::validator::{self, Message_MessageType};
 use sawtooth_sdk::messages::client_state::{ClientStateListRequest, ClientStateListResponse, ClientStateListResponse_Entry};
 use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest, ClientBatchSubmitResponse};
 use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest, ClientTransactionListResponse};
-use sawtooth_sdk::signing::Signer;
 use crate::sawtooth::Error::{SerializationError, WrongResponse, DeserializationError, RequestError, ResponseError};
 use crate::sawtooth::{Error, AlicaMessage, ComponentFactory};
 
-pub struct Client<'a> {
+pub struct Client {
     factory: Box<dyn ComponentFactory>,
-    signer: Signer<'a>,
     connection: ZmqMessageConnection
 }
 
-impl<'a> Client<'a> {
+impl Client {
     pub fn new(url: &str, component_factory: Box<dyn ComponentFactory>) -> Self {
-        let context = sawtooth_sdk::signing::create_context("secp256k1")
-            .expect("Invalid algorithm name in context creation");
-        let private_key = context.new_random_private_key()
-            .expect("Error creating a private key");
-
         Client {
             factory: component_factory,
-            signer: Signer::new_boxed(context, private_key),
             connection: ZmqMessageConnection::new(url)
         }
     }
@@ -41,12 +33,12 @@ impl<'a> Client<'a> {
         let mut transactions = Vec::new();
         transactions.reserve(contents.len());
         for message in contents {
-            let transaction_header = self.factory.create_transaction_header_for(message, &self.signer)?;
-            let transaction = self.factory.create_transaction_for(message, &transaction_header, &self.signer)?;
+            let transaction_header = self.factory.create_transaction_header_for(message)?;
+            let transaction = self.factory.create_transaction_for(message, &transaction_header)?;
             transactions.push(transaction);
         }
-        let batch_header = self.factory.create_batch_header_for(&transactions, &self.signer)?;
-        let batch = self.factory.create_batch_for(&transactions, &batch_header, &self.signer)?;
+        let batch_header = self.factory.create_batch_header_for(&transactions)?;
+        let batch = self.factory.create_batch_for(&transactions, &batch_header)?;
 
         let mut batch_submit_request = ClientBatchSubmitRequest::new();
         batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));

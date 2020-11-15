@@ -6,21 +6,25 @@ use crate::sawtooth::Error::{SerializationError, SigningError, KeyError};
 use crate::helper;
 use sawtooth_sdk::signing::Signer;
 
-pub struct GeneralPurposeComponentFactory {
-    transaction_family: TransactionFamily
+pub struct GeneralPurposeComponentFactory<'a> {
+    transaction_family: TransactionFamily,
+    signer: Signer<'a>
 }
 
-impl GeneralPurposeComponentFactory {
-    pub fn new(transaction_family: TransactionFamily) -> Self {
-        GeneralPurposeComponentFactory { transaction_family }
+impl<'a> GeneralPurposeComponentFactory<'a> {
+    pub fn new(transaction_family: TransactionFamily, signer: Signer<'a>) -> Self {
+        GeneralPurposeComponentFactory {
+            transaction_family,
+            signer
+        }
     }
 }
 
-impl TransactionFactory for GeneralPurposeComponentFactory {
-    fn create_transaction_for(&self, message: &AlicaMessage, header: &TransactionHeader, signer: &Signer)
+impl<'a> TransactionFactory for GeneralPurposeComponentFactory<'a> {
+    fn create_transaction_for(&self, message: &AlicaMessage, header: &TransactionHeader)
         -> Result<Transaction, Error> {
         let header = header.write_to_bytes().map_err(|_| SerializationError("Transaction Header".to_string()))?;
-        let header_signature = signer.sign(&header).map_err(|_| SigningError("Transaction Header".to_string()))?;
+        let header_signature = self.signer.sign(&header).map_err(|_| SigningError("Transaction Header".to_string()))?;
 
         let mut transaction = Transaction::new();
         transaction.set_header_signature(header_signature);
@@ -30,11 +34,11 @@ impl TransactionFactory for GeneralPurposeComponentFactory {
         Ok(transaction)
     }
 
-    fn create_transaction_header_for(&self, message: &AlicaMessage, signer: &Signer)
+    fn create_transaction_header_for(&self, message: &AlicaMessage)
                               -> Result<TransactionHeader, Error> {
         let payload_checksum = helper::calculate_checksum(&message.serialize());
         let state_address = self.transaction_family.calculate_state_address_for(&message);
-        let public_key = signer.get_public_key().map_err(|_| KeyError("Transaction Header".to_string()))?.as_hex();
+        let public_key = self.signer.get_public_key().map_err(|_| KeyError("Transaction Header".to_string()))?.as_hex();
 
         let mut transaction_header = TransactionHeader::new();
         transaction_header.set_family_name(self.transaction_family.name());
@@ -50,10 +54,10 @@ impl TransactionFactory for GeneralPurposeComponentFactory {
     }
 }
 
-impl BatchFactory for GeneralPurposeComponentFactory {
-    fn create_batch_for(&self, transactions: &Vec<Transaction>, header: &BatchHeader, signer: &Signer) -> Result<Batch, Error> {
+impl<'a> BatchFactory for GeneralPurposeComponentFactory<'a> {
+    fn create_batch_for(&self, transactions: &Vec<Transaction>, header: &BatchHeader) -> Result<Batch, Error> {
         let header = header.write_to_bytes().map_err(|_| SerializationError("Batch Header".to_string()))?;
-        let header_signature = signer.sign(&header).map_err(|_| SigningError("Batch Header".to_string()))?;
+        let header_signature = self.signer.sign(&header).map_err(|_| SigningError("Batch Header".to_string()))?;
 
         let mut batch = Batch::new();
         batch.set_header_signature(header_signature);
@@ -63,8 +67,8 @@ impl BatchFactory for GeneralPurposeComponentFactory {
         Ok(batch)
     }
 
-    fn create_batch_header_for(&self, transactions: &Vec<Transaction>, signer: &Signer) -> Result<BatchHeader, Error> {
-        let public_key = signer.get_public_key().map_err(|_| KeyError("Batch Header".to_string()))?.as_hex();
+    fn create_batch_header_for(&self, transactions: &Vec<Transaction>) -> Result<BatchHeader, Error> {
+        let public_key = self.signer.get_public_key().map_err(|_| KeyError("Batch Header".to_string()))?.as_hex();
 
         let mut header = BatchHeader::new();
         header.set_signer_public_key(public_key);
@@ -79,4 +83,4 @@ impl BatchFactory for GeneralPurposeComponentFactory {
     }
 }
 
-impl ComponentFactory for GeneralPurposeComponentFactory {}
+impl<'a> ComponentFactory for GeneralPurposeComponentFactory<'a> {}
