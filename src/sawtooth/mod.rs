@@ -24,7 +24,7 @@ pub trait BatchFactory {
 pub enum Error {
     RequestError,
     ResponseError,
-    WrongResponse,
+    WrongResponse(String, String),
     SerializationError(String),
     DeserializationError,
     SigningError(String),

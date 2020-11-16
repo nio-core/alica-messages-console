@@ -14,7 +14,8 @@ impl From<sawtooth::Error> for Error {
         let message = match error {
             sawtooth::Error::RequestError => "Failed to send request".to_string(),
             sawtooth::Error::ResponseError => "Failed to evaluate response".to_string(),
-            sawtooth::Error::WrongResponse => "Got wrong response".to_string(),
+            sawtooth::Error::WrongResponse(expected_response_type, actual_response_type) =>
+                format!("Got wrong response, expected {} but was {}", expected_response_type, actual_response_type),
             sawtooth::Error::SerializationError(component) => format!("Failed to serialize {}", component),
             sawtooth::Error::DeserializationError => "Failed to deserialize response".to_string(),
             sawtooth::Error::SigningError(component) => format!("Failed to sign {}", component),
