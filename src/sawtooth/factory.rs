@@ -3,7 +3,7 @@ use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
 use crate::sawtooth::{TransactionFactory, AlicaMessage, Error, BatchFactory, ComponentFactory, TransactionFamily};
 use crate::sawtooth::Error::{SerializationError, SigningError, KeyError};
-use crate::helper;
+use crate::sawtooth::helper;
 use sawtooth_sdk::signing::Signer;
 
 pub struct GeneralPurposeComponentFactory<'a> {

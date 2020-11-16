@@ -4,9 +4,7 @@ use std::path::{Path, PathBuf};
 use std::{fs, env};
 use crate::sawtooth::factory::GeneralPurposeComponentFactory;
 
-pub mod communication;
 pub mod sawtooth;
-pub mod helper;
 pub mod command;
 
 pub fn get_commandline_arguments<'a>() -> clap::ArgMatches<'a> {

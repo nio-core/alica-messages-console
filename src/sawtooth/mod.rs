@@ -1,11 +1,11 @@
 pub mod communication;
 pub mod factory;
+pub mod helper;
 
 pub use communication::Client;
 
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
-use crate::helper;
 
 pub enum Error {
     RequestError,
