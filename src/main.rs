@@ -1,5 +1,5 @@
 use alica_messages_client::{create_client_from, alica_message_from};
-use alica_messages_client::command::SawtoothCommand;
+use alica_messages_client::command::{SawtoothCommand, batch};
 use alica_messages_client::command::transaction;
 use alica_messages_client::command::state;
 
@@ -11,7 +11,7 @@ fn main() {
     let client = create_client_from(&args);
     let command: Box<dyn SawtoothCommand> = match args.subcommand() {
         ("batch", Some(args)) => match args.subcommand() {
-            ("create", Some(args)) => Box::new(transaction::BatchCreationCommand::new(client, alica_message_from(&args))),
+            ("create", Some(args)) => Box::new(batch::CreateCommand::new(client, alica_message_from(&args))),
             (cmd, _) => panic!("No subcommand {} exists for batch", cmd)
         },
         ("transaction", Some(args)) => match args.subcommand_name() {
