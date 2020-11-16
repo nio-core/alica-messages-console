@@ -1,6 +1,5 @@
 use crate::sawtooth::Client;
-use crate::command::{SawtoothCommand, ExecutionResult};
-use crate::command::Error::ClientError;
+use crate::command::{self, SawtoothCommand, ExecutionResult};
 
 pub struct ListCommand {
     client: Client,
@@ -18,7 +17,7 @@ impl ListCommand {
 
 impl SawtoothCommand for ListCommand {
     fn execute(&self) -> ExecutionResult {
-        let state_entries = self.client.list_state_entries().map_err(|_| ClientError)?;
+        let state_entries = self.client.list_state_entries().map_err(|error| command::Error::from(error))?;
 
         println!("Got {} state entries", state_entries.len());
 
