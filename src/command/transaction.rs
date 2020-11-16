@@ -1,14 +1,14 @@
-use crate::sawtooth::{AlicaMessage, Client};
+use crate::sawtooth::{AlicaMessagePayload, Client};
 use crate::command::{SawtoothCommand, ExecutionResult};
 use crate::command::Error::{ClientError};
 
 pub struct SubmissionCommand<'a> {
     client: &'a Client,
-    message: AlicaMessage
+    message: AlicaMessagePayload
 }
 
 impl<'a> SubmissionCommand<'a> {
-    pub fn new(client: &'a Client, message: AlicaMessage) -> Self {
+    pub fn new(client: &'a Client, message: AlicaMessagePayload) -> Self {
         SubmissionCommand {
             client,
             message
