@@ -5,6 +5,7 @@ use sawtooth_sdk::messages::validator::{self, Message_MessageType};
 use sawtooth_sdk::messages::client_state::{ClientStateListRequest, ClientStateListResponse, ClientStateListResponse_Entry};
 use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest, ClientBatchSubmitResponse};
 use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest, ClientTransactionListResponse};
+use protobuf::ProtobufEnum;
 use crate::sawtooth::Error::{SerializationError, WrongResponse, DeserializationError, RequestError, ResponseError};
 use crate::sawtooth::{Error, AlicaMessagePayload, ComponentFactory};
 
@@ -24,7 +25,7 @@ impl Client {
     pub fn list_state_entries(&self) -> Result<Vec<ClientStateListResponse_Entry>, Error> {
         let request = ClientStateListRequest::new();
         let response = self.send(&request, Message_MessageType::CLIENT_STATE_LIST_REQUEST)?;
-        self.validate_response(&response, Message_MessageType::CLIENT_STATE_LIST_REQUEST)?;
+        self.validate_response(&response, Message_MessageType::CLIENT_STATE_LIST_RESPONSE)?;
         let response_data = self.parse_response::<ClientStateListResponse>(response)?;
         Ok(response_data.get_entries().to_vec())
     }
@@ -44,7 +45,7 @@ impl Client {
         batch_submit_request.set_batches(protobuf::RepeatedField::from_vec(vec![batch]));
 
         let response = self.send(&batch_submit_request, Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST)?;
-        self.validate_response(&response, Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST)?;
+        self.validate_response(&response, Message_MessageType::CLIENT_BATCH_SUBMIT_RESPONSE)?;
         self.parse_response::<ClientBatchSubmitResponse>(response)?;
 
         Ok(())
@@ -75,7 +76,9 @@ impl Client {
         if message_type == expected_type {
             Ok(())
         } else {
-            Err(WrongResponse)
+            let expected_response_type = expected_type.descriptor().name().to_string();
+            let actual_response_type = message_type.descriptor().name().to_string();
+            Err(WrongResponse(expected_response_type, actual_response_type))
         }
     }
 
