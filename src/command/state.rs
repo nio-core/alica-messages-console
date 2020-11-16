@@ -2,21 +2,21 @@ use crate::sawtooth::Client;
 use crate::command::{SawtoothCommand, ExecutionResult};
 use crate::command::Error::ClientError;
 
-pub struct ListCommand<'a> {
-    client: &'a Client,
-    namespace: &'a str
+pub struct ListCommand {
+    client: Client,
+    namespace: String
 }
 
-impl<'a> ListCommand<'a> {
-    pub fn new(client: &'a Client, namespace: &'a str) -> Self {
+impl ListCommand {
+    pub fn new(client: Client, namespace: &str) -> Self {
         ListCommand {
             client,
-            namespace
+            namespace: namespace.to_string()
         }
     }
 }
 
-impl<'a> SawtoothCommand for ListCommand<'a> {
+impl SawtoothCommand for ListCommand {
     fn execute(&self) -> ExecutionResult {
         let state_entries = self.client.list_state_entries().map_err(|_| ClientError)?;
 
