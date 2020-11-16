@@ -1,4 +1,4 @@
-use crate::sawtooth::{AlicaMessage, TransactionFamily};
+use crate::sawtooth::{AlicaMessagePayload, TransactionFamily};
 use sawtooth_sdk::signing;
 use std::path::{Path, PathBuf};
 use std::{fs, env};
@@ -7,98 +7,24 @@ use crate::sawtooth::factory::GeneralPurposeComponentFactory;
 pub mod sawtooth;
 pub mod command;
 
-pub fn get_commandline_arguments<'a>() -> clap::ArgMatches<'a> {
-    clap::App::new("alica-messages")
-        .about("Client for the alica-message transaction processor")
-        .author("Sven Starcke")
-        .version("0.1.0")
-        .arg(
-            clap::Arg::with_name("connect")
-                .short("C")
-                .long("connect")
-                .takes_value(true)
-                .required(true)
-                .help("ZeroMQ address of a validator"),
-        )
-        .arg(
-            clap::Arg::with_name("key file")
-                .short("k")
-                .long("key-file")
-                .takes_value(true)
-                .required(false)
-                .help("Path to the Private Key for interactions with the sawtooth network")
-        )
-        .subcommand(clap::SubCommand::with_name("batch")
-            .help("Every interaction possibility for batches")
-            .subcommand(clap::SubCommand::with_name("create")
-                .help("Adds new single transaction batch to the chain")
-                .arg(
-                    clap::Arg::with_name("agent id")
-                        .short("i")
-                        .long("id")
-                        .takes_value(true)
-                        .required(true)
-                        .help("The unique identifier of the sending agent"),
-                )
-                .arg(
-                    clap::Arg::with_name("message type")
-                        .short("t")
-                        .long("type")
-                        .takes_value(true)
-                        .required(true)
-                        .help("The type of the message to log"),
-                )
-                .arg(
-                    clap::Arg::with_name("message")
-                        .short("m")
-                        .long("message")
-                        .takes_value(true)
-                        .required(true)
-                        .help("The message to log"),
-                )
-                .arg(
-                    clap::Arg::with_name("timestamp")
-                        .short("z")
-                        .long("timestamp")
-                        .required(true)
-                        .takes_value(true)
-                        .help("The timestamp of the moment the message was recorded"),
-                )
-            )
-        )
-        .subcommand(clap::SubCommand::with_name("transaction")
-            .help("Every interaction possibility for transactions")
-            .subcommand(clap::SubCommand::with_name("list")
-                .help("Lists all transaction in the blockchain")
-            )
-        )
-        .subcommand(clap::SubCommand::with_name("state")
-            .help("Every interaction possibility for state entries")
-            .subcommand(clap::SubCommand::with_name("list")
-                .help("List all state entries in the blockchain")
-            )
-        )
-        .get_matches()
-}
-
-pub fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessage {
-    AlicaMessage::new(
-        args.value_of("agent id").expect("agent id missing").to_string(),
-        args.value_of("message type").expect("message type missing").to_string(),
+pub fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessagePayload {
+    AlicaMessagePayload::new(
+        args.value_of("agent_id").expect("agent id missing").to_string(),
+        args.value_of("message_type").expect("message type missing").to_string(),
         args.value_of("message").expect("message missing").to_string(),
         args.value_of("timestamp").expect("timestamp missing").to_string()
     )
 }
 
 pub fn create_client_from(args: &clap::ArgMatches) -> sawtooth::Client {
-    let validator_url = args.value_of("connect").expect("Validator address missing");
-    let transaction_family = TransactionFamily::new("alica_messages", "0.1.0");
-
     let configured_key_file = get_key_file_from(args);
     let key_file = determine_key_file(configured_key_file);
     let signer = create_signer_from(&key_file);
 
+    let transaction_family = TransactionFamily::new("alica_messages", "0.1.0");
     let component_factory = GeneralPurposeComponentFactory::new(transaction_family, signer);
+
+    let validator_url = args.value_of("connect").expect("Validator address missing");
     sawtooth::Client::new(validator_url, Box::from(component_factory))
 }
 

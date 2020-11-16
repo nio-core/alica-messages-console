@@ -1,10 +1,13 @@
-use alica_messages_client::{get_commandline_arguments, create_client_from, alica_message_from};
+use alica_messages_client::{create_client_from, alica_message_from};
 use alica_messages_client::command::SawtoothCommand;
 use alica_messages_client::command::transaction;
 use alica_messages_client::command::state;
 
 fn main() {
-    let args = get_commandline_arguments();
+    let cli_definition = clap::load_yaml!("../cli.yml");
+    let app = clap::App::from(cli_definition);
+    let args = app.get_matches();
+
     let client = create_client_from(&args);
     let command: Box<dyn SawtoothCommand> = match args.subcommand() {
         ("batch", Some(args)) => match args.subcommand() {

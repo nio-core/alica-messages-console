@@ -1,7 +1,7 @@
 use protobuf::Message;
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
-use crate::sawtooth::{TransactionFactory, AlicaMessage, Error, BatchFactory, ComponentFactory, TransactionFamily};
+use crate::sawtooth::{TransactionFactory, AlicaMessagePayload, Error, BatchFactory, ComponentFactory, TransactionFamily};
 use crate::sawtooth::Error::{SerializationError, SigningError, KeyError};
 use crate::sawtooth::helper;
 use sawtooth_sdk::signing::Signer;
@@ -21,8 +21,8 @@ impl<'a> GeneralPurposeComponentFactory<'a> {
 }
 
 impl<'a> TransactionFactory for GeneralPurposeComponentFactory<'a> {
-    fn create_transaction_for(&self, message: &AlicaMessage, header: &TransactionHeader)
-        -> Result<Transaction, Error> {
+    fn create_transaction_for(&self, message: &AlicaMessagePayload, header: &TransactionHeader)
+                              -> Result<Transaction, Error> {
         let header = header.write_to_bytes().map_err(|_| SerializationError("Transaction Header".to_string()))?;
         let header_signature = self.signer.sign(&header).map_err(|_| SigningError("Transaction Header".to_string()))?;
 
@@ -34,7 +34,7 @@ impl<'a> TransactionFactory for GeneralPurposeComponentFactory<'a> {
         Ok(transaction)
     }
 
-    fn create_transaction_header_for(&self, message: &AlicaMessage)
+    fn create_transaction_header_for(&self, message: &AlicaMessagePayload)
                               -> Result<TransactionHeader, Error> {
         let payload_checksum = helper::calculate_checksum(&message.serialize());
         let state_address = self.transaction_family.calculate_state_address_for(&message);

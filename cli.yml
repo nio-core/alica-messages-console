@@ -1,0 +1,65 @@
+---
+name: alica-messages-client
+about: Client for interactions with the alica_messages transaction family in a Sawtooth network
+author: Sven Starcke
+version: "0.1.0"
+args:
+  - connect:
+      help: ZeroMQ URL of a validator running in the sawtooth network
+      short: C
+      long: connect
+      takes_value: true
+      value_name: VALIDATOR_URL
+      required: true
+  - key_file:
+      help: Path to the Private Key for interactions with the Sawtooth network
+      short: k
+      long: key-file
+      takes_value: true
+      value_name: KEY_FILE
+      required: false
+subcommands:
+  - batch:
+      about: Every interaction possibility for batches
+      subcommands:
+        - create:
+            about: Adds new single transaction batch to the chain
+            args:
+              - agent_id:
+                  help: The unique identifier of an agent
+                  short: i
+                  long: id
+                  takes_value: true
+                  value_name: ID
+                  required: true
+              - message_type:
+                  help: The type of the message
+                  short: t
+                  long: type
+                  takes_value: true
+                  value_name: TYPE
+                  required: true
+              - message:
+                  help: The message to be stored in the Sawtooth blockchain
+                  short: m
+                  long: message
+                  takes_value: true
+                  value_name: MESSAGE
+                  required: true
+              - timestamp:
+                  help: The timestamp of the moment the message was recorded
+                  short: z
+                  long: timestamp
+                  takes_value: true
+                  value_name: TIMESTAMP
+                  required: true
+  - transaction:
+      about: Every interaction possibility for transactions
+      subcommands:
+        - list:
+            about: Lists all transactions in the Sawtooth blockchain
+  - state:
+      about: Every interaction possibility for state entries
+      subcommands:
+        - list:
+            about: Lists all state entries in the Sawtooth blockchain
