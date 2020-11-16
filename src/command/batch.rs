@@ -1,6 +1,5 @@
 use crate::sawtooth::{Client, AlicaMessagePayload};
-use crate::command::{SawtoothCommand, ExecutionResult};
-use crate::command::Error::ClientError;
+use crate::command::{self, SawtoothCommand, ExecutionResult};
 
 pub struct CreateCommand {
     client: Client,
@@ -19,6 +18,6 @@ impl CreateCommand {
 impl SawtoothCommand for CreateCommand {
     fn execute(&self) -> ExecutionResult {
         let messages = vec![&self.message];
-        self.client.create_batch(&messages).map_err(|_| ClientError)
+        self.client.create_batch(&messages).map_err(|error| command::Error::from(error))
     }
 }
