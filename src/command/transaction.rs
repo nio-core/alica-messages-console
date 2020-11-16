@@ -2,21 +2,21 @@ use crate::sawtooth::{AlicaMessagePayload, Client};
 use crate::command::{SawtoothCommand, ExecutionResult};
 use crate::command::Error::{ClientError};
 
-pub struct SubmissionCommand<'a> {
+pub struct BatchCreationCommand<'a> {
     client: &'a Client,
     message: AlicaMessagePayload
 }
 
-impl<'a> SubmissionCommand<'a> {
+impl<'a> BatchCreationCommand<'a> {
     pub fn new(client: &'a Client, message: AlicaMessagePayload) -> Self {
-        SubmissionCommand {
+        BatchCreationCommand {
             client,
             message
         }
     }
 }
 
-impl<'a> SawtoothCommand for SubmissionCommand<'a> {
+impl<'a> SawtoothCommand for BatchCreationCommand<'a> {
     fn execute(&self) -> ExecutionResult {
         let messages = vec![&self.message];
         self.client.create_batch(&messages).map_err(|_| ClientError)
