@@ -744,9 +744,9 @@ dependencies = [
 
 [[package]]
 name = "sawtooth-sdk"
-version = "0.4.5"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcd6a00d515653dc744bb2ba98065b29504b09a3d61459d498d55e5dbf1c79ba"
+checksum = "e83b04c1f57e251d096cb0c0addaf384774234a70457fd1a744eeadf458321dd"
 dependencies = [
  "ctrlc",
  "glob",
