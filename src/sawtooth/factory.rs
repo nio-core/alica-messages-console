@@ -1,11 +1,11 @@
 use protobuf::Message;
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
-use crate::sawtooth::{TransactionFactory, TransactionPayload, Error, BatchFactory, ComponentFactory, TransactionFamily};
+use crate::sawtooth::{TransactionFactory, TransactionPayload, Error, BatchFactory, ComponentFactory};
 use crate::sawtooth::Error::{SerializationError, SigningError, KeyError};
 use crate::sawtooth::helper;
 use sawtooth_sdk::signing::Signer;
-use sawtooth_alica_message_transaction_payload::payloads;
+use sawtooth_alica_message_transaction_payload::{payloads, TransactionFamily};
 
 pub struct GeneralPurposeComponentFactory<'a> {
     transaction_family: TransactionFamily,
