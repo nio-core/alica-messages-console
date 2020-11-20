@@ -1,9 +1,8 @@
-use crate::sawtooth::TransactionFamily;
+use crate::sawtooth::factory::GeneralPurposeComponentFactory;
 use sawtooth_sdk::signing;
 use std::path::{Path, PathBuf};
 use std::{fs, env};
-use crate::sawtooth::factory::GeneralPurposeComponentFactory;
-use sawtooth_alica_message_transaction_payload::payloads;
+use sawtooth_alica_message_transaction_payload::{payloads, TransactionFamily};
 
 pub mod sawtooth;
 pub mod command;
