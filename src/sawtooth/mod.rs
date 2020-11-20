@@ -7,7 +7,6 @@ pub use communication::Client;
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
 use sawtooth_alica_message_transaction_payload::payloads::TransactionPayload;
-use sawtooth_alica_message_transaction_payload::payloads;
 
 pub trait ComponentFactory: TransactionFactory + BatchFactory {}
 
@@ -35,16 +34,14 @@ pub enum Error {
 
 pub struct TransactionFamily {
     name: String,
-    version: String,
-    payload_serializer: Box<dyn payloads::Format>
+    version: String
 }
 
 impl TransactionFamily {
-    pub fn new(name: &str, version: &str, payload_serializer: Box<dyn payloads::Format>) -> Self {
+    pub fn new(name: &str, version: &str) -> Self {
         TransactionFamily {
             name: name.to_string(),
-            version: version.to_string(),
-            payload_serializer
+            version: version.to_string()
         }
     }
 
@@ -61,10 +58,5 @@ impl TransactionFamily {
             &format!("{}{}{}", &message.agent_id, &message.message_type, &message.timestamp));
         let namespace_part = helper::calculate_checksum(&self.name);
         format!("{}{}", &namespace_part[..6], &payload_part[..64])
-    }
-
-    pub fn serialize(&self, payload: &TransactionPayload) -> Result<Vec<u8>, Error> {
-        self.payload_serializer.serialize(payload)
-            .map_err(|_| Error::SerializationError("Could not serialize transaction payload".to_string()))
     }
 }

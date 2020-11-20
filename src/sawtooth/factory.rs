@@ -5,16 +5,19 @@ use crate::sawtooth::{TransactionFactory, TransactionPayload, Error, BatchFactor
 use crate::sawtooth::Error::{SerializationError, SigningError, KeyError};
 use crate::sawtooth::helper;
 use sawtooth_sdk::signing::Signer;
+use sawtooth_alica_message_transaction_payload::payloads;
 
 pub struct GeneralPurposeComponentFactory<'a> {
     transaction_family: TransactionFamily,
+    payload_format: Box<dyn payloads::Format>,
     signer: Signer<'a>
 }
 
 impl<'a> GeneralPurposeComponentFactory<'a> {
-    pub fn new(transaction_family: TransactionFamily, signer: Signer<'a>) -> Self {
+    pub fn new(transaction_family: TransactionFamily, payload_format: Box<dyn payloads::Format>, signer: Signer<'a>) -> Self {
         GeneralPurposeComponentFactory {
             transaction_family,
+            payload_format,
             signer
         }
     }
@@ -25,7 +28,8 @@ impl<'a> TransactionFactory for GeneralPurposeComponentFactory<'a> {
                               -> Result<Transaction, Error> {
         let header = header.write_to_bytes().map_err(|_| SerializationError("Transaction Header".to_string()))?;
         let header_signature = self.signer.sign(&header).map_err(|_| SigningError("Transaction Header".to_string()))?;
-        let serialized_payload = self.transaction_family.serialize(message)?;
+        let serialized_payload = self.payload_format.serialize(message)
+            .map_err(|_| SerializationError("Transaction Payload".to_string()))?;
 
         let mut transaction = Transaction::new();
         transaction.set_header_signature(header_signature);
@@ -37,7 +41,8 @@ impl<'a> TransactionFactory for GeneralPurposeComponentFactory<'a> {
 
     fn create_transaction_header_for(&self, message: &TransactionPayload)
                               -> Result<TransactionHeader, Error> {
-        let serialized_payload = self.transaction_family.serialize(message)?;
+        let serialized_payload = self.payload_format.serialize(message)
+            .map_err(|_| SerializationError("Transaction Payload".to_string()))?;
         let payload_checksum = helper::calculate_checksum(&serialized_payload);
         let state_address = self.transaction_family.calculate_state_address_for(&message);
         let public_key = self.signer.get_public_key().map_err(|_| KeyError("Transaction Header".to_string()))?.as_hex();
