@@ -36,11 +36,11 @@ pub enum Error {
 pub struct TransactionFamily {
     name: String,
     version: String,
-    payload_serializer: Box<dyn payloads::Serializer>
+    payload_serializer: Box<dyn payloads::Format>
 }
 
 impl TransactionFamily {
-    pub fn new(name: &str, version: &str, payload_serializer: Box<dyn payloads::Serializer>) -> Self {
+    pub fn new(name: &str, version: &str, payload_serializer: Box<dyn payloads::Format>) -> Self {
         TransactionFamily {
             name: name.to_string(),
             version: version.to_string(),
