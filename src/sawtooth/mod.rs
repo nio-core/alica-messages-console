@@ -6,6 +6,8 @@ pub use communication::Client;
 
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
+use sawtooth_alica_message_transaction_payload::payloads::TransactionPayload;
+use sawtooth_alica_message_transaction_payload::payloads;
 
 pub trait ComponentFactory: TransactionFactory + BatchFactory {}
 
@@ -33,14 +35,16 @@ pub enum Error {
 
 pub struct TransactionFamily {
     name: String,
-    version: String
+    version: String,
+    payload_serializer: Box<dyn payloads::Serializer>
 }
 
 impl TransactionFamily {
-    pub fn new(name: &str, version: &str) -> Self {
+    pub fn new(name: &str, version: &str, payload_serializer: Box<dyn payloads::Serializer>) -> Self {
         TransactionFamily {
             name: name.to_string(),
-            version: version.to_string()
+            version: version.to_string(),
+            payload_serializer
         }
     }
 
@@ -52,34 +56,15 @@ impl TransactionFamily {
         self.version.clone()
     }
 
-    fn calculate_state_address_for(&self, message: &TransactionPayload) -> String {
+    pub fn calculate_state_address_for(&self, message: &TransactionPayload) -> String {
         let payload_part = helper::calculate_checksum(
             &format!("{}{}{}", &message.agent_id, &message.message_type, &message.timestamp));
         let namespace_part = helper::calculate_checksum(&self.name);
         format!("{}{}", &namespace_part[..6], &payload_part[..64])
     }
-}
 
-#[derive(Debug)]
-pub struct TransactionPayload {
-    agent_id: String,
-    message_type: String,
-    message: Vec<u8>,
-    timestamp: u64,
-}
-
-impl TransactionPayload {
-    pub fn new(agent_id: &str, message_type: &str, message: &[u8], timestamp: u64) -> TransactionPayload {
-        TransactionPayload {
-            agent_id: agent_id.to_string(),
-            message_type: message_type.to_string(),
-            message: message.to_vec(),
-            timestamp,
-        }
-    }
-
-    pub fn serialize(&self) -> Vec<u8> {
-        let message = String::from_utf8(self.message.clone()).expect("Serialization of message failed");
-        format!("{}|{}|{}|{}", &self.agent_id, &self.message_type, message, &self.timestamp).as_bytes().to_vec()
+    pub fn serialize(&self, payload: &TransactionPayload) -> Result<Vec<u8>, Error> {
+        self.payload_serializer.serialize(payload)
+            .map_err(|_| Error::SerializationError("Could not serialize transaction payload".to_string()))
     }
 }
