@@ -1,13 +1,13 @@
-use crate::sawtooth::{Client, AlicaMessagePayload};
+use crate::sawtooth::{Client, TransactionPayload};
 use crate::command::{self, SawtoothCommand, ExecutionResult};
 
 pub struct CreateCommand {
     client: Client,
-    message: AlicaMessagePayload
+    message: TransactionPayload
 }
 
 impl CreateCommand {
-    pub fn new(client: Client, message: AlicaMessagePayload) -> Self {
+    pub fn new(client: Client, message: TransactionPayload) -> Self {
         CreateCommand {
             client,
             message
