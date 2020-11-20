@@ -48,8 +48,8 @@ impl<'a> TransactionFactory for GeneralPurposeComponentFactory<'a> {
         let public_key = self.signer.get_public_key().map_err(|_| KeyError("Transaction Header".to_string()))?.as_hex();
 
         let mut transaction_header = TransactionHeader::new();
-        transaction_header.set_family_name(self.transaction_family.name());
-        transaction_header.set_family_version(self.transaction_family.version());
+        transaction_header.set_family_name(self.transaction_family.name.clone());
+        transaction_header.set_family_version(self.transaction_family.latest_version().clone());
         transaction_header.set_nonce(helper::random_nonce());
         transaction_header.set_inputs(protobuf::RepeatedField::from_vec(vec![state_address.clone()]));
         transaction_header.set_outputs(protobuf::RepeatedField::from_vec(vec![state_address]));

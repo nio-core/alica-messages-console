@@ -24,7 +24,7 @@ pub fn create_client_from(args: &clap::ArgMatches) -> sawtooth::Client {
     let signer = create_signer_from(&key_file);
 
     let payload_format = Box::from(payloads::pipe_separated::Format::default());
-    let transaction_family = TransactionFamily::new("alica_messages", "0.1.0");
+    let transaction_family = TransactionFamily::new("alica_messages", &vec!["0.1.0".to_string()]);
     let component_factory = GeneralPurposeComponentFactory::new(transaction_family, payload_format, signer);
 
     let validator_url = args.value_of("connect").expect("Validator address missing");
