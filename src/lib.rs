@@ -1,4 +1,4 @@
-use crate::sawtooth::{AlicaMessagePayload, TransactionFamily};
+use crate::sawtooth::{TransactionPayload, TransactionFamily};
 use sawtooth_sdk::signing;
 use std::path::{Path, PathBuf};
 use std::{fs, env};
@@ -7,12 +7,13 @@ use crate::sawtooth::factory::GeneralPurposeComponentFactory;
 pub mod sawtooth;
 pub mod command;
 
-pub fn alica_message_from(args: &clap::ArgMatches) -> AlicaMessagePayload {
-    AlicaMessagePayload::new(
-        args.value_of("agent_id").expect("agent id missing").to_string(),
-        args.value_of("message_type").expect("message type missing").to_string(),
-        args.value_of("message").expect("message missing").to_string(),
-        args.value_of("timestamp").expect("timestamp missing").to_string()
+pub fn alica_message_from(args: &clap::ArgMatches) -> TransactionPayload {
+    TransactionPayload::new(
+        args.value_of("agent_id").expect("agent id missing"),
+        args.value_of("message_type").expect("message type missing"),
+        args.value_of("message").expect("message missing").as_bytes(),
+        args.value_of("timestamp").expect("timestamp missing")
+            .parse::<u64>().expect("Timestamp is not an integer")
     )
 }
 

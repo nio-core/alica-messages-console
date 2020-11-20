@@ -7,7 +7,7 @@ use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest, Clie
 use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest, ClientTransactionListResponse};
 use protobuf::ProtobufEnum;
 use crate::sawtooth::Error::{SerializationError, WrongResponse, DeserializationError, RequestError, ResponseError};
-use crate::sawtooth::{Error, AlicaMessagePayload, ComponentFactory};
+use crate::sawtooth::{Error, TransactionPayload, ComponentFactory};
 
 pub struct Client {
     factory: Box<dyn ComponentFactory>,
@@ -30,7 +30,7 @@ impl Client {
         Ok(response_data.get_entries().to_vec())
     }
 
-    pub fn create_batch(&self, contents: &[&AlicaMessagePayload]) -> Result<(), Error> {
+    pub fn create_batch(&self, contents: &[&TransactionPayload]) -> Result<(), Error> {
         let mut transactions = Vec::new();
         transactions.reserve(contents.len());
         for message in contents {
