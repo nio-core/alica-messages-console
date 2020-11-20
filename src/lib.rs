@@ -1,8 +1,10 @@
-use crate::sawtooth::{TransactionPayload, TransactionFamily};
+use crate::sawtooth::TransactionFamily;
 use sawtooth_sdk::signing;
 use std::path::{Path, PathBuf};
 use std::{fs, env};
 use crate::sawtooth::factory::GeneralPurposeComponentFactory;
+use sawtooth_alica_message_transaction_payload::payloads::TransactionPayload;
+use sawtooth_alica_message_transaction_payload::payloads::pipe_separated::PipeSeparatedPayloadSerializer;
 
 pub mod sawtooth;
 pub mod command;
@@ -22,7 +24,8 @@ pub fn create_client_from(args: &clap::ArgMatches) -> sawtooth::Client {
     let key_file = determine_key_file(configured_key_file);
     let signer = create_signer_from(&key_file);
 
-    let transaction_family = TransactionFamily::new("alica_messages", "0.1.0");
+    let payload_serializer = Box::from(PipeSeparatedPayloadSerializer::new());
+    let transaction_family = TransactionFamily::new("alica_messages", "0.1.0", payload_serializer);
     let component_factory = GeneralPurposeComponentFactory::new(transaction_family, signer);
 
     let validator_url = args.value_of("connect").expect("Validator address missing");

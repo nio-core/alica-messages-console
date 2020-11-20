@@ -25,18 +25,20 @@ impl<'a> TransactionFactory for GeneralPurposeComponentFactory<'a> {
                               -> Result<Transaction, Error> {
         let header = header.write_to_bytes().map_err(|_| SerializationError("Transaction Header".to_string()))?;
         let header_signature = self.signer.sign(&header).map_err(|_| SigningError("Transaction Header".to_string()))?;
+        let serialized_payload = self.transaction_family.serialize(message)?;
 
         let mut transaction = Transaction::new();
         transaction.set_header_signature(header_signature);
         transaction.set_header(header);
-        transaction.set_payload(message.serialize());
+        transaction.set_payload(serialized_payload);
 
         Ok(transaction)
     }
 
     fn create_transaction_header_for(&self, message: &TransactionPayload)
                               -> Result<TransactionHeader, Error> {
-        let payload_checksum = helper::calculate_checksum(&message.serialize());
+        let serialized_payload = self.transaction_family.serialize(message)?;
+        let payload_checksum = helper::calculate_checksum(&serialized_payload);
         let state_address = self.transaction_family.calculate_state_address_for(&message);
         let public_key = self.signer.get_public_key().map_err(|_| KeyError("Transaction Header".to_string()))?.as_hex();
 
