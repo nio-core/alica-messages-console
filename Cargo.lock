@@ -734,7 +734,7 @@ checksum = "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e"
 [[package]]
 name = "sawtooth-alica-message-transaction-payload"
 version = "0.1.0"
-source = "git+https://gitlab.com/sst97/sawtooth-alica-message-transaction-payload.git#586b0f49d43ece0a85d64532635be5ffc9b32994"
+source = "git+https://gitlab.com/sst97/sawtooth-alica-message-transaction-payload.git#104c4226bbc63414c7af4d2b1f0d9848fea6b2d7"
 dependencies = [
  "json",
  "mockall",

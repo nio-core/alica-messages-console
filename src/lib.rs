@@ -3,14 +3,13 @@ use sawtooth_sdk::signing;
 use std::path::{Path, PathBuf};
 use std::{fs, env};
 use crate::sawtooth::factory::GeneralPurposeComponentFactory;
-use sawtooth_alica_message_transaction_payload::payloads::TransactionPayload;
-use sawtooth_alica_message_transaction_payload::payloads::pipe_separated::PipeSeparatedPayloadSerializer;
+use sawtooth_alica_message_transaction_payload::payloads;
 
 pub mod sawtooth;
 pub mod command;
 
-pub fn alica_message_from(args: &clap::ArgMatches) -> TransactionPayload {
-    TransactionPayload::new(
+pub fn alica_message_from(args: &clap::ArgMatches) -> payloads::TransactionPayload {
+    payloads::TransactionPayload::new(
         args.value_of("agent_id").expect("agent id missing"),
         args.value_of("message_type").expect("message type missing"),
         args.value_of("message").expect("message missing").as_bytes(),
@@ -24,7 +23,7 @@ pub fn create_client_from(args: &clap::ArgMatches) -> sawtooth::Client {
     let key_file = determine_key_file(configured_key_file);
     let signer = create_signer_from(&key_file);
 
-    let payload_serializer = Box::from(PipeSeparatedPayloadSerializer::new());
+    let payload_serializer = Box::from(payloads::pipe_separated::Format::default());
     let transaction_family = TransactionFamily::new("alica_messages", "0.1.0", payload_serializer);
     let component_factory = GeneralPurposeComponentFactory::new(transaction_family, signer);
 
