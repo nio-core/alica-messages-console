@@ -34,29 +34,32 @@ pub enum Error {
 
 pub struct TransactionFamily {
     name: String,
-    version: String
+    versions: Vec<String>
 }
 
 impl TransactionFamily {
-    pub fn new(name: &str, version: &str) -> Self {
+    pub fn new(name: &str, versions: &[String]) -> Self {
         TransactionFamily {
             name: name.to_string(),
-            version: version.to_string()
+            versions: versions.to_vec()
         }
     }
 
-    pub fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    pub fn version(&self) -> String {
-        self.version.clone()
+    pub fn calculate_namespace(&self) -> String {
+        let namespace_part = helper::calculate_checksum(&self.name);
+        namespace_part[..6].to_string()
     }
 
     pub fn calculate_state_address_for(&self, message: &TransactionPayload) -> String {
         let payload_part = helper::calculate_checksum(
             &format!("{}{}{}", &message.agent_id, &message.message_type, &message.timestamp));
-        let namespace_part = helper::calculate_checksum(&self.name);
+        let namespace_part = self.calculate_namespace();
         format!("{}{}", &namespace_part[..6], &payload_part[..64])
+    }
+
+    pub fn latest_version(&self) -> String {
+        self.versions.first()
+            .expect(&format!("There are no versions for transaction family {} configured", &self.name))
+            .clone()
     }
 }
