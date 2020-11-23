@@ -1,8 +1,7 @@
-use crate::sawtooth::factory::GeneralPurposeComponentFactory;
 use sawtooth_sdk::signing;
 use std::path::{Path, PathBuf};
 use std::{fs, env};
-use sawtooth_alica_message_transaction_payload::{payloads, TransactionFamily};
+use sawtooth_alica_message_transaction_payload::payloads;
 
 pub mod sawtooth;
 pub mod command;
@@ -17,24 +16,11 @@ pub fn create_alica_message(args: &clap::ArgMatches) -> payloads::TransactionPay
     )
 }
 
-pub fn create_sawtooth_client(args: &clap::ArgMatches) -> sawtooth::Client {
-    let configured_key_file = get_or_create_keyfile(args);
-    let key_file = determine_key_file(configured_key_file);
-    let signer = create_signer(&key_file);
-
-    let payload_format = Box::from(payloads::pipe_separated::Format::default());
-    let transaction_family = TransactionFamily::new("alica_messages", &vec!["0.1.0".to_string()]);
-    let component_factory = GeneralPurposeComponentFactory::new(transaction_family, payload_format, signer);
-
-    let validator_url = args.value_of("connect").expect("Validator address missing");
-    sawtooth::Client::new(validator_url, Box::from(component_factory))
-}
-
-fn get_or_create_keyfile(args: &clap::ArgMatches) -> Option<Box<Path>> {
+pub fn get_or_create_keyfile(args: &clap::ArgMatches) -> Option<Box<Path>> {
     args.value_of("key file").map(|path| PathBuf::from(path).into_boxed_path())
 }
 
-fn determine_key_file(configured_path: Option<Box<Path>>) -> Box<Path> {
+pub fn determine_key_file(configured_path: Option<Box<Path>>) -> Box<Path> {
     let default_file_name = "sawtooth_key";
     let home_dir = dirs::home_dir();
     let current_dir = env::current_dir().expect("Invalid working directory");
@@ -46,7 +32,7 @@ fn determine_key_file(configured_path: Option<Box<Path>>) -> Box<Path> {
     configured_path.unwrap_or(default_path)
 }
 
-fn create_signer<'a>(path: &Box<Path>) -> signing::Signer<'a> {
+pub fn create_signer<'a>(path: &Box<Path>) -> signing::Signer<'a> {
     let private_key = if path.exists() {
         read_existing_private_key(path)
     } else {
