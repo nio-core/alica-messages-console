@@ -8,13 +8,13 @@ use sawtooth_sdk::signing::Signer;
 use sawtooth_alica_message_transaction_payload::{payloads, TransactionFamily};
 
 pub struct GeneralPurposeComponentFactory<'a> {
-    transaction_family: TransactionFamily,
+    transaction_family: &'a TransactionFamily,
     payload_format: Box<dyn payloads::Format>,
     signer: Signer<'a>
 }
 
 impl<'a> GeneralPurposeComponentFactory<'a> {
-    pub fn new(transaction_family: TransactionFamily, payload_format: Box<dyn payloads::Format>, signer: Signer<'a>) -> Self {
+    pub fn new(transaction_family: &'a TransactionFamily, payload_format: Box<dyn payloads::Format>, signer: Signer<'a>) -> Self {
         GeneralPurposeComponentFactory {
             transaction_family,
             payload_format,
