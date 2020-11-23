@@ -31,7 +31,7 @@ fn main() {
             None => panic!("No subcommand supplied for transaction")
         },
         ("state", Some(args)) => match args.subcommand_name() {
-            Some("list") => Box::new(state::ListCommand::new(client, &transaction_family.calculate_namespace())),
+            Some("list") => Box::new(state::ListCommand::new(client, &transaction_family.calculate_namespace(), &payload_format)),
             Some(cmd) => panic!("No subcommand {} exists for state", cmd),
             None => panic!("No subcommand supplied for state")
         },

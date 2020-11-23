@@ -6,6 +6,7 @@ use crate::sawtooth::ComponentFactory;
 
 pub mod sawtooth;
 pub mod command;
+pub mod filter;
 
 pub fn create_alica_message(args: &clap::ArgMatches) -> payloads::TransactionPayload {
     payloads::TransactionPayload::new(

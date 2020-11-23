@@ -3,6 +3,7 @@ pub mod state;
 pub mod transaction;
 
 use crate::sawtooth;
+use sawtooth_alica_message_transaction_payload::payloads;
 
 #[derive(Debug)]
 pub enum Error {
@@ -20,6 +21,17 @@ impl From<sawtooth::Error> for Error {
             sawtooth::Error::DeserializationError => "Failed to deserialize response".to_string(),
             sawtooth::Error::SigningError(component) => format!("Failed to sign {}", component),
             sawtooth::Error::KeyError(component) => format!("Failed to fetch public key for {}", component)
+        };
+
+        Error::ExecutionError(message)
+    }
+}
+
+impl From<payloads::Error> for Error {
+    fn from(error: payloads::Error) -> Self {
+        let message = match error {
+            payloads::Error::InvalidPayload(message) => message,
+            payloads::Error::InvalidTimestamp => "Invalid timestamp supplied".to_string()
         };
 
         Error::ExecutionError(message)
