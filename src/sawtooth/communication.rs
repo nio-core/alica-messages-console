@@ -9,13 +9,13 @@ use protobuf::ProtobufEnum;
 use crate::sawtooth::Error::{SerializationError, WrongResponse, DeserializationError, RequestError, ResponseError};
 use crate::sawtooth::{Error, TransactionPayload, ComponentFactory};
 
-pub struct Client {
-    factory: Box<dyn ComponentFactory>,
+pub struct Client<'a> {
+    factory: &'a dyn ComponentFactory,
     connection: ZmqMessageConnection
 }
 
-impl Client {
-    pub fn new(url: &str, component_factory: Box<dyn ComponentFactory>) -> Self {
+impl<'a> Client<'a> {
+    pub fn new(url: &str, component_factory: &'a dyn ComponentFactory) -> Self {
         Client {
             factory: component_factory,
             connection: ZmqMessageConnection::new(url)

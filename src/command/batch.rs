@@ -2,13 +2,13 @@ use crate::sawtooth::Client;
 use crate::command::{self, SawtoothCommand, ExecutionResult};
 use sawtooth_alica_message_transaction_payload::payloads::TransactionPayload;
 
-pub struct CreateCommand {
-    client: Client,
+pub struct CreateCommand<'a> {
+    client: Client<'a>,
     message: TransactionPayload
 }
 
-impl CreateCommand {
-    pub fn new(client: Client, message: TransactionPayload) -> Self {
+impl<'a> CreateCommand<'a> {
+    pub fn new(client: Client<'a>, message: TransactionPayload) -> Self {
         CreateCommand {
             client,
             message
@@ -16,7 +16,7 @@ impl CreateCommand {
     }
 }
 
-impl SawtoothCommand for CreateCommand {
+impl<'a> SawtoothCommand for CreateCommand<'a> {
     fn execute(&self) -> ExecutionResult {
         let messages = vec![&self.message];
         self.client.create_batch(&messages).map_err(|error| command::Error::from(error))
