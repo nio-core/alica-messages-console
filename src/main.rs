@@ -16,7 +16,7 @@ fn main() {
 
     let payload_format = Box::from(payloads::pipe_separated::Format::default());
     let transaction_family = TransactionFamily::new("alica_messages", &vec!["0.1.0".to_string()]);
-    let component_factory = GeneralPurposeComponentFactory::new(transaction_family, payload_format, signer);
+    let component_factory = GeneralPurposeComponentFactory::new(&transaction_family, payload_format, signer);
 
     let validator_url = args.value_of("connect").expect("Validator address missing");
     let client = sawtooth::Client::new(validator_url, &component_factory);
@@ -32,7 +32,7 @@ fn main() {
             None => panic!("No subcommand supplied for transaction")
         },
         ("state", Some(args)) => match args.subcommand_name() {
-            Some("list") => Box::new(state::ListCommand::new(client, "")),
+            Some("list") => Box::new(state::ListCommand::new(client, &transaction_family.calculate_namespace())),
             Some(cmd) => panic!("No subcommand {} exists for state", cmd),
             None => panic!("No subcommand supplied for state")
         },
