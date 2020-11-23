@@ -2,6 +2,7 @@ use sawtooth_sdk::signing;
 use std::path::{Path, PathBuf};
 use std::{fs, env};
 use sawtooth_alica_message_transaction_payload::payloads;
+use crate::sawtooth::ComponentFactory;
 
 pub mod sawtooth;
 pub mod command;
@@ -44,6 +45,11 @@ pub fn create_signer<'a>(path: &Box<Path>) -> signing::Signer<'a> {
     let context = create_context_for_private_key(&private_key);
 
     signing::Signer::new_boxed(context, private_key)
+}
+
+pub fn create_sawtooth_client<'a>(args: &clap::ArgMatches, factory: &'a dyn ComponentFactory) -> sawtooth::Client<'a> {
+    let validator_url = args.value_of("connect").expect("Validator address missing");
+    sawtooth::Client::new(validator_url, factory)
 }
 
 fn read_existing_private_key(path: &Box<Path>) -> Box<dyn signing::PrivateKey> {
