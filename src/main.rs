@@ -1,4 +1,4 @@
-use alica_messages_client::{create_alica_message, sawtooth, get_or_create_keyfile, determine_key_file, create_signer};
+use alica_messages_client::{create_alica_message, get_or_create_keyfile, determine_key_file, create_signer, create_sawtooth_client};
 use alica_messages_client::command::{SawtoothCommand, batch};
 use alica_messages_client::command::transaction;
 use alica_messages_client::command::state;
@@ -14,12 +14,11 @@ fn main() {
     let key_file = determine_key_file(configured_key_file);
     let signer = create_signer(&key_file);
 
-    let payload_format = Box::from(payloads::pipe_separated::Format::default());
+    let payload_format = payloads::pipe_separated::Format::default();
     let transaction_family = TransactionFamily::new("alica_messages", &vec!["0.1.0".to_string()]);
-    let component_factory = GeneralPurposeComponentFactory::new(&transaction_family, payload_format, signer);
+    let component_factory = GeneralPurposeComponentFactory::new(&transaction_family, &payload_format, signer);
 
-    let validator_url = args.value_of("connect").expect("Validator address missing");
-    let client = sawtooth::Client::new(validator_url, &component_factory);
+    let client = create_sawtooth_client(&args, &component_factory);
 
     let command: Box<dyn SawtoothCommand> = match args.subcommand() {
         ("batch", Some(args)) => match args.subcommand() {
