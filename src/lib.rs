@@ -7,7 +7,7 @@ use sawtooth_alica_message_transaction_payload::{payloads, TransactionFamily};
 pub mod sawtooth;
 pub mod command;
 
-pub fn alica_message_from(args: &clap::ArgMatches) -> payloads::TransactionPayload {
+pub fn create_alica_message(args: &clap::ArgMatches) -> payloads::TransactionPayload {
     payloads::TransactionPayload::new(
         args.value_of("agent_id").expect("agent id missing"),
         args.value_of("message_type").expect("message type missing"),
@@ -17,10 +17,10 @@ pub fn alica_message_from(args: &clap::ArgMatches) -> payloads::TransactionPaylo
     )
 }
 
-pub fn create_client_from(args: &clap::ArgMatches) -> sawtooth::Client {
-    let configured_key_file = get_key_file_from(args);
+pub fn create_sawtooth_client(args: &clap::ArgMatches) -> sawtooth::Client {
+    let configured_key_file = get_or_create_keyfile(args);
     let key_file = determine_key_file(configured_key_file);
-    let signer = create_signer_from(&key_file);
+    let signer = create_signer(&key_file);
 
     let payload_format = Box::from(payloads::pipe_separated::Format::default());
     let transaction_family = TransactionFamily::new("alica_messages", &vec!["0.1.0".to_string()]);
@@ -30,7 +30,7 @@ pub fn create_client_from(args: &clap::ArgMatches) -> sawtooth::Client {
     sawtooth::Client::new(validator_url, Box::from(component_factory))
 }
 
-fn get_key_file_from(args: &clap::ArgMatches) -> Option<Box<Path>> {
+fn get_or_create_keyfile(args: &clap::ArgMatches) -> Option<Box<Path>> {
     args.value_of("key file").map(|path| PathBuf::from(path).into_boxed_path())
 }
 
@@ -46,9 +46,9 @@ fn determine_key_file(configured_path: Option<Box<Path>>) -> Box<Path> {
     configured_path.unwrap_or(default_path)
 }
 
-fn create_signer_from<'a>(path: &Box<Path>) -> signing::Signer<'a> {
+fn create_signer<'a>(path: &Box<Path>) -> signing::Signer<'a> {
     let private_key = if path.exists() {
-        create_private_key_from_file(path)
+        read_existing_private_key(path)
     } else {
         let private_key = create_new_private_key();
         write_private_key_to_file(&private_key, path);
@@ -60,7 +60,7 @@ fn create_signer_from<'a>(path: &Box<Path>) -> signing::Signer<'a> {
     signing::Signer::new_boxed(context, private_key)
 }
 
-fn create_private_key_from_file(path: &Box<Path>) -> Box<dyn signing::PrivateKey> {
+fn read_existing_private_key(path: &Box<Path>) -> Box<dyn signing::PrivateKey> {
     println!("Using key file at {}", path.to_str().expect("Could not display key file"));
     let raw_private_key = fs::read_to_string(path.to_str().expect("Invalid key file")).expect("Invalid key file");
     let private_key = signing::secp256k1::Secp256k1PrivateKey::from_hex(&raw_private_key)
