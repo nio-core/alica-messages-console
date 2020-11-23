@@ -19,7 +19,7 @@ fn main() {
     let component_factory = GeneralPurposeComponentFactory::new(transaction_family, payload_format, signer);
 
     let validator_url = args.value_of("connect").expect("Validator address missing");
-    let client = sawtooth::Client::new(validator_url, Box::from(component_factory));
+    let client = sawtooth::Client::new(validator_url, &component_factory);
 
     let command: Box<dyn SawtoothCommand> = match args.subcommand() {
         ("batch", Some(args)) => match args.subcommand() {

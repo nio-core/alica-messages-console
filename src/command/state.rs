@@ -1,13 +1,13 @@
 use crate::sawtooth::Client;
 use crate::command::{self, SawtoothCommand, ExecutionResult};
 
-pub struct ListCommand {
-    client: Client,
+pub struct ListCommand<'a> {
+    client: Client<'a>,
     namespace: String
 }
 
-impl ListCommand {
-    pub fn new(client: Client, namespace: &str) -> Self {
+impl<'a> ListCommand<'a> {
+    pub fn new(client: Client<'a>, namespace: &str) -> Self {
         ListCommand {
             client,
             namespace: namespace.to_string()
@@ -15,7 +15,7 @@ impl ListCommand {
     }
 }
 
-impl SawtoothCommand for ListCommand {
+impl<'a> SawtoothCommand for ListCommand<'a> {
     fn execute(&self) -> ExecutionResult {
         let state_entries = self.client.list_state_entries().map_err(|error| command::Error::from(error))?;
 

@@ -2,19 +2,19 @@ use crate::sawtooth::Client;
 use crate::command::{self, SawtoothCommand, ExecutionResult};
 use crate::command::Error::ExecutionError;
 
-pub struct ListCommand {
-    client: Client
+pub struct ListCommand<'a> {
+    client: Client<'a>
 }
 
-impl ListCommand {
-    pub fn new(client: Client) -> Self {
+impl<'a> ListCommand<'a> {
+    pub fn new(client: Client<'a>) -> Self {
         ListCommand {
             client
         }
     }
 }
 
-impl SawtoothCommand for ListCommand {
+impl<'a> SawtoothCommand for ListCommand<'a> {
     fn execute(&self) -> ExecutionResult {
         let transactions = self.client.list_transactions().map_err(|error| command::Error::from(error))?;
 
