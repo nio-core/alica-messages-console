@@ -16,6 +16,7 @@ dependencies = [
  "clap",
  "data-encoding",
  "dirs",
+ "mockall",
  "protobuf",
  "rand 0.7.3",
  "sawtooth-alica-message-transaction-payload",
