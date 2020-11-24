@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::{fs, env};
 use sawtooth_alica_message_transaction_payload::payloads;
 use crate::sawtooth::ComponentFactory;
+use crate::filter::{TransactionPayloadFilter, AgentIdFilter, MessageTypeFilter};
 
 pub mod sawtooth;
 pub mod command;
@@ -51,6 +52,31 @@ pub fn create_signer<'a>(path: &Box<Path>) -> signing::Signer<'a> {
 pub fn create_sawtooth_client<'a>(args: &clap::ArgMatches, factory: &'a dyn ComponentFactory) -> sawtooth::Client<'a> {
     let validator_url = args.value_of("connect").expect("Validator address missing");
     sawtooth::Client::new(validator_url, factory)
+}
+
+pub fn create_filters(args: &clap::ArgMatches) -> Vec<Box<dyn TransactionPayloadFilter>> {
+    match args.values_of("filter") {
+        Some(values) => values.map(|filter_condition| {
+                let (key, value) = dissect_filter_condition(filter_condition);
+                determine_filter(&key, &value)
+            }).collect(),
+        None => Vec::new()
+    }
+}
+
+fn dissect_filter_condition(condition: &str) -> (String, String) {
+    let mut components = condition.split("=");
+    let key = components.next().expect("No key found, filter needs to be KEY=VALUE");
+    let value = components.next().expect("No value found, filter needs to be KEY=VALUE");
+    (key.to_string(), value.to_string())
+}
+
+fn determine_filter(key: &str, value: &str) -> Box<dyn TransactionPayloadFilter> {
+    match key {
+        "agent_id" => Box::from(AgentIdFilter::new(value)),
+        "message_type" => Box::from(MessageTypeFilter::new(value)),
+        invalid_filter => panic!("Invalid filter \"{}\" supplied", invalid_filter)
+    }
 }
 
 fn read_existing_private_key(path: &Box<Path>) -> Box<dyn signing::PrivateKey> {
