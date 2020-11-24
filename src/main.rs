@@ -1,4 +1,4 @@
-use alica_messages_client::{create_alica_message, get_or_create_keyfile, determine_key_file, create_signer, create_sawtooth_client};
+use alica_messages_client::{create_alica_message, get_or_create_keyfile, determine_key_file, create_signer, create_sawtooth_client, create_filters};
 use alica_messages_client::command::{SawtoothCommand, batch};
 use alica_messages_client::command::transaction;
 use alica_messages_client::command::state;
@@ -23,18 +23,25 @@ fn main() {
     let command: Box<dyn SawtoothCommand> = match args.subcommand() {
         ("batch", Some(args)) => match args.subcommand() {
             ("create", Some(args)) => Box::new(batch::CreateCommand::new(client, create_alica_message(&args))),
+            ("", _) => panic!("No subcommand supplied to batch"),
             (cmd, _) => panic!("No subcommand {} exists for batch", cmd)
         },
         ("transaction", Some(args)) => match args.subcommand_name() {
             Some("list") => Box::new(transaction::ListCommand::new(client)),
+            Some("") => panic!("No subcommand supplied to transaction"),
             Some(cmd) => panic!("No subcommand {} exists for transaction", cmd),
             None => panic!("No subcommand supplied for transaction")
         },
-        ("state", Some(args)) => match args.subcommand_name() {
-            Some("list") => Box::new(state::ListCommand::new(client, &transaction_family.calculate_namespace(), &payload_format)),
-            Some(cmd) => panic!("No subcommand {} exists for state", cmd),
-            None => panic!("No subcommand supplied for state")
+        ("state", Some(args)) => match args.subcommand() {
+            ("list", Some(args)) => {
+                let filters = create_filters(&args);
+                Box::new(state::ListCommand::new(client, &transaction_family.calculate_namespace(),
+                                                 &payload_format, filters))
+            },
+            ("", _) => panic!("No subcommand supplied to state"),
+            (cmd, _) => panic!("No subcommand {} exists for state", cmd),
         },
+        ("", _) => panic!("No subcommand supplied"),
         (cmd, _) => panic!("No subcommand {} exists", cmd)
     };
 

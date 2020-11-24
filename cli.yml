@@ -63,3 +63,12 @@ subcommands:
       subcommands:
         - list:
             about: Lists all state entries in the Sawtooth blockchain
+            args:
+              - filter:
+                  help: filter expressions more preceise display of transaction payloads
+                  short: f
+                  long: filter
+                  takes_value: true
+                  value_name: KEY=VALUE
+                  multiple: true
+                  required: false
