@@ -3,7 +3,7 @@ use alica_messages_client::command::{SawtoothCommand, batch};
 use alica_messages_client::command::transaction;
 use alica_messages_client::command::state;
 use alica_messages_client::sawtooth::factory::GeneralPurposeComponentFactory;
-use sawtooth_alica_message_transaction_payload::{TransactionFamily, payloads};
+use sawtooth_alica_payload::{TransactionFamily, payloads};
 
 fn main() {
     let cli_definition = clap::load_yaml!("../cli.yml");

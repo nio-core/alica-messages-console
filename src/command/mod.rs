@@ -3,7 +3,7 @@ pub mod state;
 pub mod transaction;
 
 use crate::sawtooth;
-use sawtooth_alica_message_transaction_payload::payloads;
+use sawtooth_alica_payload::payloads;
 
 #[derive(Debug)]
 pub enum Error {

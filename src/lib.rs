@@ -1,7 +1,7 @@
 use sawtooth_sdk::signing;
 use std::path::{Path, PathBuf};
 use std::{fs, env};
-use sawtooth_alica_message_transaction_payload::payloads;
+use sawtooth_alica_payload::payloads;
 use crate::sawtooth::ComponentFactory;
 use crate::filter::{TransactionPayloadFilter, AgentIdFilter, MessageTypeFilter};
 

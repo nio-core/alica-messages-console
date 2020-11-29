@@ -1,7 +1,7 @@
 use crate::sawtooth::Client;
 use crate::command::{self, SawtoothCommand, ExecutionResult};
-use sawtooth_alica_message_transaction_payload::payloads;
-use sawtooth_alica_message_transaction_payload::payloads::TransactionPayload;
+use sawtooth_alica_payload::payloads;
+use sawtooth_alica_payload::payloads::TransactionPayload;
 use crate::filter::TransactionPayloadFilter;
 
 pub struct ListCommand<'a> {

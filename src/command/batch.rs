@@ -1,6 +1,6 @@
 use crate::sawtooth::Client;
 use crate::command::{self, SawtoothCommand, ExecutionResult};
-use sawtooth_alica_message_transaction_payload::payloads::TransactionPayload;
+use sawtooth_alica_payload::payloads::TransactionPayload;
 
 pub struct CreateCommand<'a> {
     client: Client<'a>,

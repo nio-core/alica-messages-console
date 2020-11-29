@@ -1,5 +1,5 @@
 use mockall::automock;
-use sawtooth_alica_message_transaction_payload::payloads::TransactionPayload;
+use sawtooth_alica_payload::payloads::TransactionPayload;
 
 #[automock]
 pub trait TransactionPayloadFilter {
@@ -44,7 +44,7 @@ impl TransactionPayloadFilter for MessageTypeFilter {
 
 #[cfg(test)]
 mod test {
-    use sawtooth_alica_message_transaction_payload::payloads::TransactionPayload;
+    use sawtooth_alica_payload::payloads::TransactionPayload;
     use crate::filter::{AgentIdFilter, TransactionPayloadFilter, MessageTypeFilter};
 
     #[test]
