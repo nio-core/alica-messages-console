@@ -5,7 +5,7 @@ use crate::sawtooth::{TransactionFactory, TransactionPayload, Error, BatchFactor
 use crate::sawtooth::Error::{SerializationError, SigningError, KeyError};
 use crate::sawtooth::helper;
 use sawtooth_sdk::signing::Signer;
-use sawtooth_alica_message_transaction_payload::{payloads, TransactionFamily};
+use sawtooth_alica_payload::{payloads, TransactionFamily};
 
 pub struct GeneralPurposeComponentFactory<'a> {
     transaction_family: &'a TransactionFamily,

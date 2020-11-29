@@ -6,7 +6,7 @@ pub use communication::Client;
 
 use sawtooth_sdk::messages::transaction::{Transaction, TransactionHeader};
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
-use sawtooth_alica_message_transaction_payload::payloads::TransactionPayload;
+use sawtooth_alica_payload::payloads::TransactionPayload;
 
 pub trait ComponentFactory: TransactionFactory + BatchFactory {}
 
