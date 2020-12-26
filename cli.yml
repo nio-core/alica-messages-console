@@ -53,11 +53,6 @@ subcommands:
                   takes_value: true
                   value_name: TIMESTAMP
                   required: true
-  - transaction:
-      about: Every interaction possibility for transactions
-      subcommands:
-        - list:
-            about: Lists all transactions in the Sawtooth blockchain
   - state:
       about: Every interaction possibility for state entries
       subcommands:

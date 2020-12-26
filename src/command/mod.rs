@@ -1,6 +1,5 @@
 pub mod batch;
 pub mod state;
-pub mod transaction;
 
 use crate::sawtooth;
 use sawtooth_alica_payload::payloads;

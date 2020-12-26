@@ -1,6 +1,5 @@
 use alica_messages_client::{create_alica_message, get_or_create_keyfile, determine_key_file, create_signer, create_sawtooth_client, create_filters};
 use alica_messages_client::command::{SawtoothCommand, batch};
-use alica_messages_client::command::transaction;
 use alica_messages_client::command::state;
 use alica_messages_client::sawtooth::factory::GeneralPurposeComponentFactory;
 use sawtooth_alica_payload::{TransactionFamily, payloads};
@@ -25,12 +24,6 @@ fn main() {
             ("create", Some(args)) => Box::new(batch::CreateCommand::new(client, create_alica_message(&args))),
             ("", _) => panic!("No subcommand supplied to batch"),
             (cmd, _) => panic!("No subcommand {} exists for batch", cmd)
-        },
-        ("transaction", Some(args)) => match args.subcommand_name() {
-            Some("list") => Box::new(transaction::ListCommand::new(client)),
-            Some("") => panic!("No subcommand supplied to transaction"),
-            Some(cmd) => panic!("No subcommand {} exists for transaction", cmd),
-            None => panic!("No subcommand supplied for transaction")
         },
         ("state", Some(args)) => match args.subcommand() {
             ("list", Some(args)) => {
