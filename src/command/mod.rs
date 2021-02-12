@@ -19,7 +19,11 @@ impl From<sawtooth::Error> for Error {
             sawtooth::Error::SerializationError(component) => format!("Failed to serialize {}", component),
             sawtooth::Error::DeserializationError => "Failed to deserialize response".to_string(),
             sawtooth::Error::SigningError(component) => format!("Failed to sign {}", component),
-            sawtooth::Error::KeyError(component) => format!("Failed to fetch public key for {}", component)
+            sawtooth::Error::KeyError(component) => format!("Failed to fetch public key for {}", component),
+            sawtooth::Error::InvalidBatch => format!("Invalid batch"),
+            sawtooth::Error::InternalError => format!("Internal error when submitting batch"),
+            sawtooth::Error::FullQueue => format!("Batch request queue of targeted validator is full!"),
+            sawtooth::Error::BatchStatusUnset => format!("No status set for batch"),
         };
 
         Error::ExecutionError(message)

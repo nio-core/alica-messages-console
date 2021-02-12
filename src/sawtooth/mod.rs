@@ -25,6 +25,10 @@ pub trait BatchFactory {
 pub enum Error {
     RequestError,
     ResponseError,
+    InvalidBatch,
+    InternalError,
+    FullQueue,
+    BatchStatusUnset,
     WrongResponse(String, String),
     SerializationError(String),
     DeserializationError,

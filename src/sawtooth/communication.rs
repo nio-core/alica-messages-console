@@ -3,22 +3,23 @@ use sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection;
 use sawtooth_sdk::messages::transaction::Transaction;
 use sawtooth_sdk::messages::validator::{self, Message_MessageType};
 use sawtooth_sdk::messages::client_state::{ClientStateListRequest, ClientStateListResponse, ClientStateListResponse_Entry};
-use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest, ClientBatchSubmitResponse};
+use sawtooth_sdk::messages::client_batch_submit::{ClientBatchSubmitRequest, ClientBatchSubmitResponse, ClientBatchSubmitResponse_Status};
 use sawtooth_sdk::messages::client_transaction::{ClientTransactionListRequest, ClientTransactionListResponse};
 use protobuf::ProtobufEnum;
-use crate::sawtooth::Error::{SerializationError, WrongResponse, DeserializationError, RequestError, ResponseError};
+use crate::sawtooth::Error::{SerializationError, WrongResponse, DeserializationError, RequestError, ResponseError, InvalidBatch, BatchStatusUnset, InternalError, FullQueue};
 use crate::sawtooth::{Error, TransactionPayload, ComponentFactory};
 
 pub struct Client<'a> {
     factory: &'a dyn ComponentFactory,
-    connection: ZmqMessageConnection
+    sender: Box<dyn MessageSender>,
 }
 
 impl<'a> Client<'a> {
     pub fn new(url: &str, component_factory: &'a dyn ComponentFactory) -> Self {
+        let connection = ZmqMessageConnection::new(url).create();
         Client {
             factory: component_factory,
-            connection: ZmqMessageConnection::new(url)
+            sender: Box::from(connection.0),
         }
     }
 
@@ -46,9 +47,15 @@ impl<'a> Client<'a> {
 
         let response = self.send(&batch_submit_request, Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST)?;
         self.validate_response(&response, Message_MessageType::CLIENT_BATCH_SUBMIT_RESPONSE)?;
-        self.parse_response::<ClientBatchSubmitResponse>(response)?;
+        let response_data = self.parse_response::<ClientBatchSubmitResponse>(response)?;
 
-        Ok(())
+        match response_data.get_status() {
+            ClientBatchSubmitResponse_Status::OK => Ok(()),
+            ClientBatchSubmitResponse_Status::STATUS_UNSET => Err(BatchStatusUnset),
+            ClientBatchSubmitResponse_Status::INVALID_BATCH => Err(InvalidBatch),
+            ClientBatchSubmitResponse_Status::INTERNAL_ERROR => Err(InternalError),
+            ClientBatchSubmitResponse_Status::QUEUE_FULL => Err(FullQueue),
+        }
     }
 
     pub fn list_transactions(&self) -> Result<Vec<Transaction>, Error> {
@@ -61,11 +68,10 @@ impl<'a> Client<'a> {
 
     pub fn send(&self, request: &dyn protobuf::Message, request_type: Message_MessageType)
                 -> Result<validator::Message, Error> {
-        let (sender, _) = self.connection.create();
         let correlation_id = uuid::Uuid::new_v4().to_string();
         let message_bytes = &request.write_to_bytes().map_err(|_| SerializationError("Request".to_string()))?;
 
-        sender.send(request_type, &correlation_id, message_bytes)
+        self.sender.send(request_type, &correlation_id, message_bytes)
             .map(|mut future| future.get())
             .map_err(|_| ResponseError)?
             .map_err(|_| RequestError)
@@ -85,5 +91,11 @@ impl<'a> Client<'a> {
     fn parse_response<T>(&self, response: validator::Message) -> Result<T, Error>
         where T: protobuf::Message {
         protobuf::parse_from_bytes::<T>(response.get_content()).map_err(|_| DeserializationError)
+    }
+}
+
+impl<'a> Drop for Client<'a> {
+    fn drop(&mut self) {
+        self.sender.close();
     }
 }
