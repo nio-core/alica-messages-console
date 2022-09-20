@@ -1,2 +1,2 @@
-# alica-messages-client
+# alica-messages-console
 
